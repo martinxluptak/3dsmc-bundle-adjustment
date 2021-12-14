@@ -34,7 +34,6 @@ target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} opengv)
 set(TEST_SOURCE_FILES
         test/main.cpp
         test/Exercise5LibsIncludeTest.cpp
-        test/OpenCVIncludeTest.cpp
         )
 
 # Create testing target with the same dependencies
