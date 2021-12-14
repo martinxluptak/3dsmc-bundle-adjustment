@@ -2,6 +2,7 @@
 // Created by martinxluptak on 12/14/2021.
 //
 // This file adds code excerpts from Exercise 5 to verify that all Exercise 5 libraries are included properly.
+// These sources are not related to the bundle adjustment project.
 //
 
 #include <ceres/ceres.h>
