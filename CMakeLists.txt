@@ -12,7 +12,7 @@ conan_basic_setup()
 
 FetchContent_Declare(
         opengv # sub-project name
-        GIT_REPOSITORY git@github.com:laurentkneip/opengv.git # repository URL
+        GIT_REPOSITORY https://github.com/laurentkneip/opengv.git # repository URL
         GIT_TAG master # Git commit ID
         GIT_SHALLOW TRUE # only pull latest commits (faster)
         GIT_PROGRESS TRUE # show progress
