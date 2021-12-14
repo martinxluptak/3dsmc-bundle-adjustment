@@ -12,14 +12,6 @@
 using namespace Eigen;
 
 
-TEST (IncludeTests /*test suite name*/, Exercise5IncludeTest /*test name*/) {
-    EXPECT_EQ (9.0, (3.0 * 2.0)); // fail, test continues
-    ASSERT_EQ (0.0, (0.0));     // success
-    ASSERT_EQ (9, (3) * (-3.0));  // fail, test interrupts
-    ASSERT_EQ (-9, (-3) * (-3.0));// not executed due to the previous assert
-}
-
-
 /**
  * Helper methods for writing Ceres cost functions.
  */
@@ -150,3 +142,18 @@ protected:
     const float m_weight;
     const float LAMBDA = 0.1f;
 };
+
+/*
+ *  If you can run this test, Eigen and Ceres were added successfully.
+ */
+TEST (IncludeTests /*test suite name*/, Exercise5IncludeTest /*test name*/) {
+    Vector3f zeroVector = Vector3f::Zero();
+
+    ASSERT_EQ(zeroVector, Vector3f::Zero());
+
+    double incrementArray[6];
+    auto poseIncrement = PoseIncrement<double>(incrementArray);
+    poseIncrement.setZero();
+    Matrix4f matrix = PoseIncrement<double>::convertToMatrix(poseIncrement);
+    ASSERT_EQ(matrix, Matrix4f::Identity());
+}
