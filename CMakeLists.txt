@@ -1,23 +1,25 @@
 cmake_minimum_required(VERSION 3.16)
 project(bundle_adjustment)
-include(FetchContent)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 
-include(${CMAKE_BINARY_DIR}/../build/conanbuildinfo.cmake)
+include("${CMAKE_CURRENT_SOURCE_DIR}/build/conanbuildinfo.cmake")
 
 set(CONAN_DISABLE_CHECK_COMPILER OFF INTERNAL "Disable compiler compatibility check (for Visual Studio).")
 conan_basic_setup()
 
-FetchContent_Declare(
-        opengv # sub-project name
-        GIT_REPOSITORY https://github.com/laurentkneip/opengv.git # repository URL
-        GIT_TAG master # Git commit ID
-        GIT_SHALLOW TRUE # only pull latest commits (faster)
-        GIT_PROGRESS TRUE # show progress
-)
-FetchContent_MakeAvailable(opengv)
+set(OpenCV_DIR ".../build_opencv") # SET TO <your_path>/lib/build_opencv
+set(OpenGV_DIR ".../build_opengv") # SET TO <your_path>/lib/build_opengv
+
+message(STATUS "===Are these directories correct?===")
+message(STATUS "opencv_DIR:${OpenCV_DIR}")
+message(STATUS "opengv_DIR:${OpenGV_DIR}")
+message(STATUS "=========")
+
+
+find_package(OpenCV REQUIRED)
+find_package(OpenGV REQUIRED)
 
 set(HEADER_FILES
         ""
@@ -28,7 +30,7 @@ set(SOURCE_FILES
         )
 
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} opengv)
+target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS} opengv)
 
 # Set files to be compiled for testing target
 set(TEST_SOURCE_FILES
@@ -38,4 +40,4 @@ set(TEST_SOURCE_FILES
 
 # Create testing target with the same dependencies
 add_executable(${PROJECT_NAME}_tests ${HEADER_FILES} ${TEST_SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME}_tests ${CONAN_LIBS})
+target_link_libraries(${PROJECT_NAME}_tests ${CONAN_LIBS} ${OpenCV_LIBS} opengv)
