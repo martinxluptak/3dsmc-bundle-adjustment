@@ -30,7 +30,7 @@ set(SOURCE_FILES
         )
 
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS} opengv)
+target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS} opengv freeimage)
 
 # Set files to be compiled for testing target
 set(TEST_SOURCE_FILES
