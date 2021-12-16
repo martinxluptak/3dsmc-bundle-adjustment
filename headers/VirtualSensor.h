@@ -32,11 +32,6 @@ public:
                       m_colorImagesTimeStamps))
       return false;
 
-    // read tracking
-    if (!ReadTrajectoryFile(datasetDir + "groundtruth.txt", m_trajectory,
-                            m_trajectoryTimeStamps))
-      return false;
-
     if (m_filenameDepthImages.size() != m_filenameColorImages.size())
       return false;
 
@@ -97,19 +92,6 @@ public:
         m_depthFrame[i] = dImage.data[i] * 1.0f / 5000.0f;
     }
 
-    // find transformation (simple nearest neighbor, linear search)
-    double timestamp = m_depthImagesTimeStamps[m_currentIdx];
-    double min = std::numeric_limits<double>::max();
-    int idx = 0;
-    for (unsigned int i = 0; i < m_trajectory.size(); ++i) {
-      double d = fabs(m_trajectoryTimeStamps[i] - timestamp);
-      if (min > d) {
-        min = d;
-        idx = i;
-      }
-    }
-    m_currentTrajectory = m_trajectory[idx];
-
     return true;
   }
 
@@ -138,9 +120,6 @@ public:
 
   unsigned int GetDepthImageHeight() { return m_colorImageHeight; }
 
-  // get current trajectory transformation
-  Eigen::Matrix4f GetTrajectory() { return m_currentTrajectory; }
-
 private:
   bool ReadFileList(const std::string &filename,
                     std::vector<std::string> &result,
@@ -168,43 +147,6 @@ private:
     return true;
   }
 
-  bool ReadTrajectoryFile(const std::string &filename,
-                          std::vector<Eigen::Matrix4f> &result,
-                          std::vector<double> &timestamps) {
-    std::ifstream file(filename, std::ios::in);
-    if (!file.is_open())
-      return false;
-    result.clear();
-    std::string dump;
-    std::getline(file, dump);
-    std::getline(file, dump);
-    std::getline(file, dump);
-
-    while (file.good()) {
-      double timestamp;
-      file >> timestamp;
-      Eigen::Vector3f translation;
-      file >> translation.x() >> translation.y() >> translation.z();
-      Eigen::Quaternionf rot;
-      file >> rot;
-
-      Eigen::Matrix4f transf;
-      transf.setIdentity();
-      transf.block<3, 3>(0, 0) = rot.toRotationMatrix();
-      transf.block<3, 1>(0, 3) = translation;
-
-      if (rot.norm() == 0)
-        break;
-
-      transf = transf.inverse().eval();
-
-      timestamps.push_back(timestamp);
-      result.push_back(transf);
-    }
-    file.close();
-    return true;
-  }
-
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // current frame index
@@ -215,7 +157,6 @@ private:
   // frame data
   float *m_depthFrame;
   BYTE *m_colorFrame;
-  Eigen::Matrix4f m_currentTrajectory;
 
   // color camera info
   Eigen::Matrix3f m_colorIntrinsics;
@@ -237,8 +178,4 @@ private:
   // filenamelist color
   std::vector<std::string> m_filenameColorImages;
   std::vector<double> m_colorImagesTimeStamps;
-
-  // trajectory
-  std::vector<Eigen::Matrix4f> m_trajectory;
-  std::vector<double> m_trajectoryTimeStamps;
 };
