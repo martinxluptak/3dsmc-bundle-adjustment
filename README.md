@@ -60,16 +60,28 @@ conan install ..
 
 Your installed C++ MSVC compiler must be at least version 14 to ensure backwards compatibility.
 
+### OpenCV and OpenGV
+These libraries need to be built from source. Run the bash scripts found in `lib/` directory (use [git-bash](https://git-scm.com/downloads) on Windows) in the following order:
+```
+./installEigen.sh
+./installOCV.sh
+./installOGV.sh
+```
+After the compilation is complete, open `CMakeLists.txt` and set the `OpenCV_DIR` and `OpenGV_DIR` variables to navigate to
+`opencv_build` and `opengv_build` directories respectively.
+
 ### Further setup instructions
 
 1. After installing the libraries with Conan, import the project into Visual Studio / CLion and execute
 the `CMakeLists.txt`.
 2. Switch your build profile from Debug to Release, as the bundled binaries are also in Release. Attempting to build and
 run with the Debug build profile results in an error.
-3. Dependencies should become available without further setup. OpenGV is an exception, as it is not distributed for Windows
-in Conan and must be built from source. This should not take more than 5 minutes on a modern system.
+3. If a missing OpenCV DLL error appears on launch on Windows, check CMake output for a path to append to Windows PATH
+environment variable and append it. ([instructions](https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/))
 4. With or without OpenGV, you should be able to build and run the `bundle_adjustment_tests` target, which imports
 Eigen and Ceres.
+5. With the OpenCV dependency oyu should be able to build and run the `bundle_adjustment_surf_flann_test` target to verify
+you have the non-free algorithms available.
 
 If you encounter issues with build architecture mismatch `x86 != x64`, make sure you are building an
 executable for the same architecture as your libraries.\
