@@ -4,6 +4,7 @@ glog/0.5.0
 ceres-solver/2.0.0
 sophus/1.0.0
 gtest/cci.20210126
+opengv/cci.20200806
 
 [generators]
 cmake
