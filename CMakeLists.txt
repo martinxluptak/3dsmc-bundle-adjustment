@@ -22,15 +22,18 @@ find_package(OpenCV REQUIRED)
 find_package(OpenGV REQUIRED)
 
 set(HEADER_FILES
-        ""
+        "headers/Eigen.h"
+        "headers/FreeImageHelper.h"
+        "headers/VirtualSensor.h"
         )
 
 set(SOURCE_FILES
         src/main.cpp
+        src/FreeImageHelper.cpp
         )
 
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS} opengv)
+target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS} opengv freeimage)
 
 # Set files to be compiled for testing target
 set(TEST_SOURCE_FILES
@@ -43,4 +46,3 @@ add_executable(${PROJECT_NAME}_tests ${HEADER_FILES} ${TEST_SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME}_tests ${CONAN_LIBS} ${OpenCV_LIBS} opengv)
 
 add_executable(${PROJECT_NAME}_surf_flann_test ${HEADER_FILES} test/SurfFlannMatchingTest.cpp)
-target_link_libraries(${PROJECT_NAME}_surf_flann_test ${CONAN_LIBS} ${OpenCV_LIBS})
