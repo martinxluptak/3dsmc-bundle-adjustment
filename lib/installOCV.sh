@@ -1,8 +1,16 @@
 #!/bin/bash -e
 myRepo=$(pwd)
-CMAKE_GENERATOR_OPTIONS=-G"Visual Studio 16 2019"
-#CMAKE_GENERATOR_OPTIONS=-G"Visual Studio 15 2017 Win64"
-CMAKE_GENERATOR_OPTIONS=(-G"Visual Studio 16 2019" -A x64)  # CMake 3.14+ is required
+
+# create a yes/no prompt
+while true; do
+    read -p "Do you wish to use the Visual Studio compiler for installation?" yn
+    case $yn in
+        [Yy]* ) CMAKE_GENERATOR_OPTIONS=(-G"Visual Studio 16 2019" -A x64); break;; # CMake 3.14+ is required
+        [Nn]* ) break;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
+
 if [  ! -d "$myRepo/opencv"  ]; then
     echo "cloning opencv"
     git clone https://github.com/opencv/opencv.git

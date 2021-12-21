@@ -1,6 +1,16 @@
 #!/bin/bash -e
 myRepo=$(pwd)
-CMAKE_GENERATOR_OPTIONS=(-G"Visual Studio 16 2019" -A x64)  # CMake 3.14+ is required
+
+# create a yes/no prompt
+while true; do
+    read -p "Do you wish to use the Visual Studio compiler for installation?" yn
+    case $yn in
+        [Yy]* ) CMAKE_GENERATOR_OPTIONS=(-G"Visual Studio 16 2019" -A x64); break;; # CMake 3.14+ is required
+        [Nn]* ) break;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
+
 if [  ! -d "$myRepo/eigen"  ]; then
     echo "cloning eigen"
     git clone https://gitlab.com/libeigen/eigen.git
