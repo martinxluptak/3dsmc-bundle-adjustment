@@ -43,5 +43,5 @@ set(TEST_SOURCE_FILES
 add_executable(${PROJECT_NAME}_tests ${HEADER_FILES} ${TEST_SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME}_tests ${CONAN_LIBS} ${OpenCV_LIBS})
 
-add_executable(${PROJECT_NAME}_surf_flann_test ${HEADER_FILES} test/SurfFlannMatchingTest.cpp)
+add_executable(${PROJECT_NAME}_surf_flann_test test/SurfFlannMatchingTest.cpp)
 target_link_libraries(${PROJECT_NAME}_surf_flann_test ${CONAN_LIBS} ${OpenCV_LIBS})
