@@ -17,7 +17,7 @@ message(STATUS "=========")
 
 
 find_package(OpenCV REQUIRED)
-# include_directories(${OpenCV_INCLUDE_DIRS}) # uncomment if OpenCV includes are causing errors (missing from PATH).
+include_directories(headers ${OpenCV_INCLUDE_DIRS}) # uncomment if OpenCV includes are causing errors (missing from PATH).
 
 set(HEADER_FILES
         "headers/Eigen.h"
