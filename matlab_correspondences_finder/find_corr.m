@@ -84,7 +84,6 @@ function correspondences = find_corr(images, depths, nn_poses, interval, image_n
                     % Add line on our txt file
                     fprintf(fileID,'%d ',kpi);
                     fprintf(fileID, '%s ',name);
-                    fprintf(fileID, '%s ',image_names{skip});
                     fprintf(fileID, '%s ',depth_names{skip});
                     fprintf(fileID, '%s ',gt_names{skip});
                     fprintf(fileID, '%f %f ',[x,y]);
