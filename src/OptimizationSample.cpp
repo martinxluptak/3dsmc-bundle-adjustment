@@ -19,6 +19,7 @@
 #include "opencv2/xfeatures2d.hpp"
 #include <cmath>
 #include <algorithm>
+#include <rotation.h>
 
 using namespace std;
 using namespace Eigen;
@@ -127,16 +128,29 @@ public:
 //        cout << p_pix.transpose() << endl;
 //        cout << endl;
 
-        Quaterniond q(pose[3], pose[0], pose[1],
-                      pose[2]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
-        Sophus::SE3d::Point t(pose[4], pose[5], pose[6]);
-        Sophus::SE3d pose_CW(q, t);
-        Vector3d p_w(x_w[0], x_w[1], x_w[2]);
+        const Quaternion<T> q(pose[3], pose[0], pose[1],
+                              pose[2]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
+        const Vector<T, 3> t(pose[4], pose[5], pose[6]);
+        const Vector<T, 3> p_W(x_w[0], x_w[1], x_w[2]);
+
+//        // Inverse quaternion
+//        T qi[] = {pose[3], -pose[0], -pose[1], -pose[2]};   // rotation of the inverse transformation
+//        T t[3] = {pose[4], pose[5], pose[6]}; // minus translation of the original pose
+//        T ti[3];    // translation of the inverse transformation, to be filled in
+//        UnitQuaternionRotatePoint(qi, mt, ti);
+
+//        Sophus::SE3d::Point t(pose[4], pose[5], pose[6]);
+//        Sophus::SE3d pose_CW(q, t);
+//        Vector3d p_w(x_w[0], x_w[1], x_w[2]);
+
+        const Vector<T, 3> p_C = q.inverse().matrix() * (p_W - t);
+        const Vector<T, 2> p_pix_est = (intrinsics.cast<T>() * p_C / p_C.z())(seq(0, 1));
+
 
         // Now, rotate from world to camera
-        Vector3d p_C = (pose_CW.matrix().inverse() * p_w.homogeneous())(seq(0, 2));
+//        Vector3d p_C = (pose_CW.matrix().inverse() * p_w.homogeneous())(seq(0, 2));
         // Project and use intrinsics
-        Vector2d p_pix_est = (intrinsics * p_C / p_C.z())(seq(0, 1));
+//        Vector2d p_pix_est = (intrinsics * p_C / p_C.z())(seq(0, 1));
         // Reprojection error
         residuals[0] = T(p_pix_est[0]) - T(p_pix[0]);
         residuals[1] = T(p_pix_est[1]) - T(p_pix[1]);
@@ -149,10 +163,15 @@ public:
 //        return new ceres::NumericDiffCostFunction<ReprojectionConstraint, ceres::CENTRAL, 2, 7, 3>(
 //                new ReprojectionConstraint(intrinsics, pPix));
 //    }
-    static ceres::CostFunction * create_cost_function(const Matrix3d &intrinsics, const Vector2d &pPix){
-        return new ceres::NumericDiffCostFunction<ReprojectionConstraint, ceres::CENTRAL, 2, 7, 3>(
-                    new ReprojectionConstraint(intrinsics, pPix)
-                );
+//    static ceres::CostFunction * create_cost_function(const Matrix3d &intrinsics, const Vector2d &pPix){
+//        return new ceres::NumericDiffCostFunction<ReprojectionConstraint, ceres::CENTRAL, 2, 7, 3>(
+//                    new ReprojectionConstraint(intrinsics, pPix)
+//                );
+//    }
+    static ceres::CostFunction *create_cost_function(const Matrix3d &intrinsics, const Vector2d &pPix) {
+        return new ceres::AutoDiffCostFunction<ReprojectionConstraint, 2, 7, 3>(
+                new ReprojectionConstraint(intrinsics, pPix)
+        );
     }
 
 private:
@@ -230,7 +249,7 @@ int main(int argc, char *argv[]) {
         if (iter_found != uniqueNeededImageNames.end()) {
             pose_indices.push_back(distance(uniqueNeededImageNames.begin(), iter_found));
         } else {
-            if (uniqueNeededImageNames.begin() !=uniqueNeededImageNames.end())
+            if (uniqueNeededImageNames.begin() != uniqueNeededImageNames.end())
                 ui++;
             pose_indices.push_back(ui);
             uniqueNeededImageNames.emplace_back(rgb_file_ts);
@@ -416,12 +435,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Remember, we have associated a world map index (correspondence index -1) and a pose index (more complicated) to every correspondence
-    for(auto & correspondence : correspondences){
-        for(int l=0; l < correspondence.getPoses().size(); l++){
-            problem.AddResidualBlock(ReprojectionConstraint::create_cost_function(intrinsics, correspondence.getObsPix()[l]),
-                                     nullptr /* squared loss */,
-                                     poses[correspondence.getPoseIndices()[l]].data(),
-                                     worldMap[correspondence.getIndex()-1].data());
+    for (auto &correspondence: correspondences) {
+        for (int l = 0; l < correspondence.getPoses().size(); l++) {
+            problem.AddResidualBlock(
+                    ReprojectionConstraint::create_cost_function(intrinsics, correspondence.getObsPix()[l]),
+                    nullptr /* squared loss */,
+                    poses[correspondence.getPoseIndices()[l]].data(),
+                    worldMap[correspondence.getIndex() - 1].data());
 //            auto pw = worldMap[correspondence.getIndex()-1];
 //            auto pos = poses[correspondence.getPoseIndices()[l]];
 //            Vector3d p_c = (pos.matrix().inverse()*pw.homogeneous())(seq(0,2));
