@@ -127,30 +127,32 @@ public:
 //        cout << x_w[0] << " " << x_w[1] << " " << x_w[2] << endl;
 //        cout << p_pix.transpose() << endl;
 //        cout << endl;
-
-        const Quaternion<T> q(pose[3], pose[0], pose[1],
-                              pose[2]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
-        const Vector<T, 3> t(pose[4], pose[5], pose[6]);
-        const Vector<T, 3> p_W(x_w[0], x_w[1], x_w[2]);
-
-//        // Inverse quaternion
+//        // Testing rotation.h, not needed anymore
 //        T qi[] = {pose[3], -pose[0], -pose[1], -pose[2]};   // rotation of the inverse transformation
 //        T t[3] = {pose[4], pose[5], pose[6]}; // minus translation of the original pose
 //        T ti[3];    // translation of the inverse transformation, to be filled in
 //        UnitQuaternionRotatePoint(qi, mt, ti);
 
-//        Sophus::SE3d::Point t(pose[4], pose[5], pose[6]);
-//        Sophus::SE3d pose_CW(q, t);
-//        Vector3d p_w(x_w[0], x_w[1], x_w[2]);
+        // Autodiff way
+        const Quaternion<T> q(pose[3], pose[0], pose[1],
+                              pose[2]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
+        const Vector<T, 3> t(pose[4], pose[5], pose[6]);
+        const Vector<T, 3> p_W(x_w[0], x_w[1], x_w[2]);
 
         const Vector<T, 3> p_C = q.inverse().matrix() * (p_W - t);
         const Vector<T, 2> p_pix_est = (intrinsics.cast<T>() * p_C / p_C.z())(seq(0, 1));
 
-
-        // Now, rotate from world to camera
+//        // Numeric way
+//        Quaterniond q(pose[3], pose[0], pose[1],
+//                      pose[2]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
+//        Sophus::SE3d::Point t(pose[4], pose[5], pose[6]);
+//        Sophus::SE3d pose_CW(q, t);
+//        Vector3d p_w(x_w[0], x_w[1], x_w[2]);
+//        // Now, rotate from world to camera
 //        Vector3d p_C = (pose_CW.matrix().inverse() * p_w.homogeneous())(seq(0, 2));
-        // Project and use intrinsics
+//        // Project and use intrinsics
 //        Vector2d p_pix_est = (intrinsics * p_C / p_C.z())(seq(0, 1));
+
         // Reprojection error
         residuals[0] = T(p_pix_est[0]) - T(p_pix[0]);
         residuals[1] = T(p_pix_est[1]) - T(p_pix[1]);
@@ -327,7 +329,7 @@ int main(int argc, char *argv[]) {
     vector<Sophus::SE3d> initialPoses;
     vector<Sophus::SE3d> gtPoses;
 
-    const double PERTURBATION_RATIO = 1e-1;
+    double PERTURBATION_RATIO = .5e-1;
     for (int i = 0; i < interpolatedTimestamps.size(); i++) {
         auto index = timestampIndices[i];
 
@@ -346,12 +348,18 @@ int main(int argc, char *argv[]) {
         gtPoses.emplace_back(quat_gt, translation_gt);
 
         // Perturbation and creation
-        translation_eigen += translationPert;
+        if (i > 0) {  // not perturbing the first guy, it is kept fixed in the optimization
+            translation_eigen += translationPert;
+            quat_eigen += quatPert;
+            quat_eigen /= quat_eigen.norm();
+        }
         Sophus::SE3d::Point translation = translation_eigen;
-        quat_eigen += quatPert;
-        quat_eigen /= quat_eigen.norm();
         Quaterniond quat(quat_eigen);
         initialPoses.emplace_back(quat, translation);
+
+        // Optional: add even more drift as the sequence progresses
+//        PERTURBATION_RATIO+=PERTURBATION_RATIO/3;
+
     }
 
     // Note, there is now a correspondence between gtPoses and uniqueNeededImageNames
@@ -374,7 +382,11 @@ int main(int argc, char *argv[]) {
     // We initialize a 3D point with the depth map of the first frame it is observed in (to reduce drift)
     vector<Vector3d> initialWorldMap;
     vector<Vector3d> gtWorldMap;
-    double MAP_PERTURBATION_RATIO = 5e-1;
+    double MAP_PERTURBATION_RATIO = 1e-1;
+    double p_outlier = 0.0; // generate an outlier with p_outlier % probability (but not our job to eliminate outliers)
+    double outlier_scaling = 5;   // increase perturbation by a factor of 10 (a lot!)
+    int keep_constant = 15;
+    int count = 0;
     // TODO: this works because of the order in which the correspondences are stored in five_frames.txt. Inform other people about this
     for (auto &correspondence: correspondences) { // TODO we should run over the depth frames and not over correspondences for efficient image loading
 
@@ -391,6 +403,7 @@ int main(int argc, char *argv[]) {
         int j = floor(correspondence.getObsPix()[0][0]);
         int i = floor(correspondence.getObsPix()[0][1]);
         double d = depthImage.at<uint16_t>(i, j) / 5000.0; // 16-bit depth, 1 channel
+        cout << d << endl;
 
         // Reconstruct the 3D point (from the real ground truth, not the perturbed one)
         Vector3d point_world;
@@ -410,7 +423,16 @@ int main(int argc, char *argv[]) {
                                                                       2));    // This is done with gt data. And by plotting this one can tell that the gt rotations are R_{B->W}, probably
 
         // Perturb, add to map, save ground truth data
-        Vector3d pointPert = Vector3d::Random(3) * MAP_PERTURBATION_RATIO;
+        // Outliers
+        int p = (rand() % 100) / 100;
+        double scaling = 1;
+        if (p < p_outlier)
+            scaling *= outlier_scaling;
+        if (count == keep_constant) {
+            scaling = 0.0;
+        }
+        count++;
+        Vector3d pointPert = Vector3d::Random(3) * scaling * MAP_PERTURBATION_RATIO;
         gtWorldMap.push_back(point_world);
         point_world += pointPert;
         initialWorldMap.push_back(point_world);
@@ -418,10 +440,7 @@ int main(int argc, char *argv[]) {
     }
 
     //-------------------------------------------------- CERES OPTIMIZATION
-
-    ceres::Problem problem;
-
-    // Optimization variables, poses and map
+    ceres::Problem problem;// Optimization variables, poses and map
     auto poses(initialPoses);
     ceres::LocalParameterization *local_parametrization_se3 = new Sophus::LocalParameterizationSE3;
     for (auto &pose: poses) {
@@ -435,34 +454,138 @@ int main(int argc, char *argv[]) {
     }
 
     // Remember, we have associated a world map index (correspondence index -1) and a pose index (more complicated) to every correspondence
+    cout << "Reprojection errors before optimization: " << endl;
     for (auto &correspondence: correspondences) {
         for (int l = 0; l < correspondence.getPoses().size(); l++) {
             problem.AddResidualBlock(
                     ReprojectionConstraint::create_cost_function(intrinsics, correspondence.getObsPix()[l]),
-                    nullptr /* squared loss */,
+                    new ceres::HuberLoss(1.0),
                     poses[correspondence.getPoseIndices()[l]].data(),
                     worldMap[correspondence.getIndex() - 1].data());
-//            auto pw = worldMap[correspondence.getIndex()-1];
-//            auto pos = poses[correspondence.getPoseIndices()[l]];
-//            Vector3d p_c = (pos.matrix().inverse()*pw.homogeneous())(seq(0,2));
-//            Vector2d p_p = (intrinsics * (p_c/p_c.z()))(seq(0,1));
+            auto pw = worldMap[correspondence.getIndex() - 1];
+            auto pos = poses[correspondence.getPoseIndices()[l]];
+            Vector3d p_c = (pos.matrix().inverse() * pw.homogeneous())(seq(0, 2));
+            Vector2d p_p = (intrinsics * (p_c / p_c.z()))(seq(0, 1));
+            cout << (p_p - correspondence.getObsPix()[l]).norm() << endl;
 //            cout << (p_p - correspondence.getObsPix()[l]).norm() << " | " << pw.transpose() << endl;
         }
     }
 
-    // Solve
+    // Compare with ground truth
+    vector<double> pose_errors;
+    vector<double> map_errors;
+    cout << "Pose errors before optimization: " << endl;
+    for (int i = 0; i < gtPoses.size(); i++) {
+        auto p_err = ((gtPoses[i].inverse() * poses[i]).matrix() - Matrix4d::Identity()).norm();
+        pose_errors.push_back(p_err);
+        cout << p_err << endl;
+    }
+    cout << "Map errors before optimization: " << endl;
+    for (int i = 0; i < gtWorldMap.size(); i++) {
+        auto m_err = (worldMap[i] - gtWorldMap[i]).norm();
+        map_errors.push_back(m_err);
+        cout << m_err << endl;
+    }
+
+    // Constrain the problem
+    problem.SetParameterBlockConstant(poses[0].data()); // any pose, kept constant, will do
+    problem.SetParameterBlockConstant(worldMap[keep_constant].data()); // any pose, kept constant, will do
+
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     options.minimizer_progress_to_stdout = true;
-    options.max_num_iterations = 100;
-
+    options.max_num_iterations = 200;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 //    std::cout << summary.BriefReport() << "\n";
 
-    // Some checks I have done
-    // the inputted quaternions have norm of 1
-    // the inputted depths are >> 0
-    // BUT the reprojection error is very large: I have failed to do some data association step?
+    cout << "Reprojection errors after optimization: " << endl;
+    for (auto &correspondence: correspondences) {
+        for (int l = 0; l < correspondence.getPoses().size(); l++) {
+            auto pw = worldMap[correspondence.getIndex() - 1];
+            auto pos = poses[correspondence.getPoseIndices()[l]];
+            Vector3d p_c = (pos.matrix().inverse() * pw.homogeneous())(seq(0, 2));
+            Vector2d p_p = (intrinsics * (p_c / p_c.z()))(seq(0, 1));
+            cout << (p_p - correspondence.getObsPix()[l]).norm() << endl;
+//            cout << (p_p - correspondence.getObsPix()[l]).norm() << " | " << pw.transpose() << endl;
+        }
+    }
+    cout << "Pose errors after optimization: " << endl;
+    for (int i = 0; i < gtPoses.size(); i++) {
+        auto p_err = ((gtPoses[i].inverse() * poses[i]).matrix() - Matrix4d::Identity()).norm();
+        pose_errors.push_back(p_err);
+        cout << p_err << endl;
+    }
+    cout << "Map errors after optimization: " << endl;
+    for (int i = 0; i < gtWorldMap.size(); i++) {
+        auto m_err = (worldMap[i] - gtWorldMap[i]).norm();
+        map_errors.push_back(m_err);
+        cout << m_err << " | " << worldMap[i].transpose() << endl;
+    }
+
+    // Notes
+    // 1) autodiff runs twice as fast
+    // 2) perturbations above a certain treshold make optimization not converge
+    // 3) adding large outliers make optimization not converge
+    // 4) not even using a Huber loss helps
+    // 5) pose errors are averaged out and slightly reduced
+    // 6) map errors increase
+    // 7) reprojection errors decrease drastically
+    // 8) -> scale ambiguity, fix a pose and a map point
+    // 9) now pose errors are much lower (they were .2), and they increase as time increases, to be expected?).
+    //    Map points are better apart from 2 large outliers (?)
+    //    Pose errors after optimization:
+    //    0
+    //    0.01791161869422029
+    //    0.02346511678199089
+    //    0.026982826378678926
+    //    0.0371614501770633
+    //    Map errors after optimization:
+    //    0
+    //    0.024840395914591456
+    //    0.093004283293719486
+    //    0.049394236301493352
+    //    0.028589798394583421
+    //    0.15847544563464272
+    //    0.10603251824330331
+    //    0.066467253281677532
+    //    0.66709619830411182
+    //    0.042044582560245493
+    //    0.10740345080902573
+    //    1.9959865304447988
+    //    0.30224908467118672
+    //    0.088936535129609945
+    //    0.010218351660408742
+    //    0.15897312101451591
+    //    3.9754683674080531
+    //    0.45031045582085988
+    //    0.079442148764633361
+    //    Even worse if keep_constant = 15
+    //    Pose errors after optimization:
+    //    0
+    //    0.016424707006456873
+    //    0.021445867328087592
+    //    0.027286074810309393
+    //    0.038493247348242332
+    //    Map errors after optimization:
+    //    0.36424188460076729 | 0.72688446871620971 0.19295236199472934  1.0006107406876317
+    //    0.33569179594020004 | 0.71440530112624556 0.31490037734909404 0.99747799127947689
+    //    0.48244118065288505 | 0.57716932945071753 0.33319562182083079  1.0276424925006935
+    //    0.46601562995688067 | 0.54154877377083344 0.18870233837013795 0.99988794689157789
+    //    0.28437290672193072 | 0.7105047880788733 0.8536380459254993 1.0785024097277756
+    //    0.14057464220234531 | 0.60902632781967347 0.93521191068384868 0.98669807038259405
+    //    0.39058233524787267 | 0.87578975133244708 0.68689877605071703  1.0532952924015371
+    //    0.1781773733856051 | 0.94331907799840509 0.73274669494646416 0.90236433119915171
+    //    0.17869067391362314 | 0.45633098821654355  1.2758423232468488 0.63673247791319709
+    //    0.25681347950645306 | 0.81659108865352481 0.47572158021871935  1.1078436921037733
+    //    0.19110205583054327 |  0.8287411944078148 0.53238125176025353  1.0696471947114767
+    //    1.8582732084451083 |  -3.3981902238558779 -0.62392379344118509 0.058915575756753505
+    //    0.96312088997284584 |  -0.23246423301959715 -0.010677030598000382   0.91452416890146704
+    //    0.26801101187541093 | 0.34001387139197792 0.84964785580594815  1.1966751768976516
+    //    0.31854717065106314 | 0.37591155067784454  0.9185350185405432  1.2152490309104735
+    //    0 | 0.76581549209968713  1.0625169735356792 0.76779446823853792
+    //    1480.8199040598579 | -1083.4685579068214  115.10309180664919 -1001.4343639708552
+    //    0.1188009283575841 |  0.3526032414753616  1.2036970603269825 0.68535566890512967
+    //    0.45796098845305783 | 0.64050595899442486 0.56306030004999741  1.0461500399329871
 
 }
