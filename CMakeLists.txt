@@ -21,13 +21,11 @@ include_directories(headers ${OpenCV_INCLUDE_DIRS}) # uncomment if OpenCV includ
 
 set(HEADER_FILES
         "headers/Eigen.h"
-        "headers/FreeImageHelper.h"
         "headers/VirtualSensor.h"
         )
 
 set(SOURCE_FILES
         src/main.cpp
-        src/FreeImageHelper.cpp
         )
 
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})

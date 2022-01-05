@@ -6,20 +6,25 @@
 #include <vector>
 
 #include "Eigen.h"
-#include "FreeImageHelper.h"
+#include "opencv2/core.hpp"
+#include "opencv2/highgui.hpp"
+//#include "FreeImageHelper.h"
 
 typedef unsigned char BYTE;
+
+using namespace cv;
 
 // reads sensor files according to
 // https://vision.in.tum.de/data/datasets/rgbd-dataset/file_formats
 class VirtualSensor {
 public:
-  VirtualSensor() : m_currentIdx(-1), m_increment(10) {}
+  VirtualSensor(int increment = 10)
+      : m_currentIdx(-1), m_increment(increment) {}
 
-  ~VirtualSensor() {
-    SAFE_DELETE_ARRAY(m_depthFrame);
-    SAFE_DELETE_ARRAY(m_colorFrame);
-  }
+  //  ~VirtualSensor() {
+  //    SAFE_DELETE_ARRAY(m_depthFrame);
+  //    SAFE_DELETE_ARRAY(m_grayscaleFrame);
+  //  }
 
   bool Init(const std::string &datasetDir) {
     m_baseDir = datasetDir;
@@ -36,28 +41,30 @@ public:
       return false;
 
     // image resolutions
-    m_colorImageWidth = 640;
-    m_colorImageHeight = 480;
+    m_imageWidth = 640;
+    m_imageHeight = 480;
     m_depthImageWidth = 640;
     m_depthImageHeight = 480;
 
     // intrinsics
-    m_colorIntrinsics << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f,
+    m_intrinsics << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f,
         1.0f;
 
-    m_depthIntrinsics = m_colorIntrinsics;
+    m_depthIntrinsics = m_intrinsics;
 
-    m_colorExtrinsics.setIdentity();
+    m_extrinsics.setIdentity();
     m_depthExtrinsics.setIdentity();
 
-    m_depthFrame = new float[m_depthImageWidth * m_depthImageHeight];
-    for (unsigned int i = 0; i < m_depthImageWidth * m_depthImageHeight; ++i)
-      m_depthFrame[i] = 0.5f;
+    //    m_depthFrame = new float[m_depthImageWidth * m_depthImageHeight];
+    //    for (unsigned int i = 0; i < m_depthImageWidth * m_depthImageHeight;
+    //    ++i)
+    //      m_depthFrame[i] = 0.5f;
 
-    m_colorFrame = new BYTE[4 * m_colorImageWidth * m_colorImageHeight];
-    for (unsigned int i = 0; i < 4 * m_colorImageWidth * m_colorImageHeight;
-         ++i)
-      m_colorFrame[i] = 255;
+    //    m_colorFrame = new BYTE[4 * m_colorImageWidth * m_colorImageHeight];
+    //    for (unsigned int i = 0; i < 4 * m_colorImageWidth *
+    //    m_colorImageHeight;
+    //         ++i)
+    //      m_colorFrame[i] = 255;
 
     m_currentIdx = -1;
     return true;
@@ -76,20 +83,22 @@ public:
     std::cout << "ProcessNextFrame [" << m_currentIdx << " | "
               << m_filenameColorImages.size() << "]" << std::endl;
 
-    FreeImageB rgbImage;
-    rgbImage.LoadImageFromFile(m_baseDir + m_filenameColorImages[m_currentIdx]);
-    memcpy(m_colorFrame, rgbImage.data, 4 * 640 * 480);
+    m_grayscaleFrame = imread(
+        samples::findFile(m_baseDir + m_filenameColorImages[m_currentIdx]),
+        IMREAD_GRAYSCALE);
+    //    memcpy(m_colorFrame, rgbImage.data, 4 * 640 * 480);
+
+    m_depthFrame = imread(
+        samples::findFile(m_baseDir + m_filenameDepthImages[m_currentIdx]),
+        IMREAD_UNCHANGED);
 
     // depth images are scaled by 5000 (see
     // https://vision.in.tum.de/data/datasets/rgbd-dataset/file_formats)
-    FreeImageU16F dImage;
-    dImage.LoadImageFromFile(m_baseDir + m_filenameDepthImages[m_currentIdx]);
-
-    for (unsigned int i = 0; i < m_depthImageWidth * m_depthImageHeight; ++i) {
-      if (dImage.data[i] == 0)
-        m_depthFrame[i] = MINF;
+    for (auto &val : m_depthFrame) {
+      if (val == 0)
+        val = MINF;
       else
-        m_depthFrame[i] = dImage.data[i] * 1.0f / 5000.0f;
+        val = val * 1.0f / 5000.0f;
     }
 
     return true;
@@ -98,27 +107,27 @@ public:
   unsigned int GetCurrentFrameCnt() { return (unsigned int)m_currentIdx; }
 
   // get current color data
-  BYTE *GetColorRGBX() { return m_colorFrame; }
+  Mat GetGrayscaleFrame() { return m_grayscaleFrame; }
   // get current depth data
-  float *GetDepth() { return m_depthFrame; }
+  Mat GetDepth() { return m_depthFrame; }
 
   // color camera info
-  Eigen::Matrix3f GetColorIntrinsics() { return m_colorIntrinsics; }
+  Eigen::Matrix3f GetCameraIntrinsics() { return m_intrinsics; }
 
-  Eigen::Matrix4f GetColorExtrinsics() { return m_colorExtrinsics; }
+  Eigen::Matrix4f GetCameraExtrinsics() { return m_extrinsics; }
 
-  unsigned int GetColorImageWidth() { return m_colorImageWidth; }
+  unsigned int GetImageWidth() { return m_imageWidth; }
 
-  unsigned int GetColorImageHeight() { return m_colorImageHeight; }
+  unsigned int GetImageHeight() { return m_imageHeight; }
 
   // depth (ir) camera info
   Eigen::Matrix3f GetDepthIntrinsics() { return m_depthIntrinsics; }
 
   Eigen::Matrix4f GetDepthExtrinsics() { return m_depthExtrinsics; }
 
-  unsigned int GetDepthImageWidth() { return m_colorImageWidth; }
+  unsigned int GetDepthImageWidth() { return m_imageWidth; }
 
-  unsigned int GetDepthImageHeight() { return m_colorImageHeight; }
+  unsigned int GetDepthImageHeight() { return m_imageHeight; }
 
 private:
   bool ReadFileList(const std::string &filename,
@@ -155,14 +164,14 @@ private:
   int m_increment;
 
   // frame data
-  float *m_depthFrame;
-  BYTE *m_colorFrame;
+  Mat_<float> m_depthFrame;
+  Mat m_grayscaleFrame;
 
   // color camera info
-  Eigen::Matrix3f m_colorIntrinsics;
-  Eigen::Matrix4f m_colorExtrinsics;
-  unsigned int m_colorImageWidth;
-  unsigned int m_colorImageHeight;
+  Eigen::Matrix3f m_intrinsics;
+  Eigen::Matrix4f m_extrinsics;
+  unsigned int m_imageWidth;
+  unsigned int m_imageHeight;
 
   // depth (ir) camera info
   Eigen::Matrix3f m_depthIntrinsics;
