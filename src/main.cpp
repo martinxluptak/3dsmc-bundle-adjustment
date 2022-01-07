@@ -7,6 +7,8 @@
 //#include <Eigen/Dense>
 #include "opencv2/calib3d.hpp"
 
+#include "Map3D.cpp" // TODO: switch to Map3D.h!
+
 using namespace cv;
 using namespace std;
 using namespace Eigen;
@@ -16,8 +18,7 @@ vector<DMatch> filterMatchesLowe(const vector<vector<DMatch>>& knn_matches, cons
 {
     vector<DMatch> good_matches;
     for (size_t i = 0; i < knn_matches.size(); i++) {
-        if (knn_matches[i][0].distance <
-            ratio * knn_matches[i][1].distance) {
+        if (knn_matches[i][0].distance < ratio * knn_matches[i][1].distance) {
             good_matches.push_back(knn_matches[i][0]);
         }
     }
@@ -76,8 +77,36 @@ void displayMatches(string img_name, const Mat& frame1, const vector<KeyPoint>& 
     waitKey();
 };
 
+// saves points with -Inf depth
+// TODO: skip those points!
+vector<Vector3f> getPoints3D(const vector<Point2f>& matched_points_left, const vector<Point2f>& matched_points_right,
+                             const Mat& depth_frame1, const Matrix3f& intrinsics)
+{
+    vector<Vector3f> points3d;
+    for (auto& point2d : matched_points_left)
+    {
+        int u = static_cast<int>(point2d.x);
+        int v = static_cast<int>(point2d.y);
+
+        v = point2d.y;
+        float z = depth_frame1.at<float>(u, v);
+        float x = z * (u - intrinsics(0,2)) / intrinsics(0,0);
+        float y = z * (v - intrinsics(1,2)) / intrinsics(1,1);
+        Vector3f point3d(x, y, z);
+        points3d.push_back(point3d);
+    }
+    return points3d;
+}
+
 
 int main() {
+
+    // test
+    int a=12, b=3, c;
+    c = sum(a, b);
+    cout << "sum: " << c;
+
+
     string filenameIn = string(".../rgbd_dataset_freiburg1_xyz/"); // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
 
     // load video
@@ -92,8 +121,10 @@ int main() {
     // all next frames are tracked relatively to the first frame
     sensor.ProcessNextFrame();
     const auto &frame1 = sensor.GetGrayscaleFrame();
+    const auto &depth_frame1 = sensor.GetDepthFrame();
     sensor.ProcessNextFrame();
     const auto &frame2 = sensor.GetGrayscaleFrame();
+    const auto &depth_frame2 = sensor.GetDepthFrame();
     waitKey();
 
     if (frame1.empty()) {
@@ -122,10 +153,17 @@ int main() {
     vector<Point2f> matched_points1, matched_points2; // points that match
     tie(matched_points1, matched_points2) = getMatchedPoints(good_matches, keypoints1, keypoints2);
 
+    // TODO: unify intrinsics
+    Matrix3f intr;
+    intr << 517.3, 0.0, 319.5,
+            0.0, 516.5, 255.3,
+            0.0, 0.0, 1.0;
+
     double intrinsics_data[] = {517.3, 0.0, 319.5,
                                 0.0, 516.5, 255.3,
                                 0.0, 0.0, 1.0};
     Mat intrinsics(3, 3, CV_64FC1, intrinsics_data);
+
 
     // filter matches using RANSAC, get essential matrix
     Mat mask_ransac;
@@ -146,9 +184,22 @@ int main() {
     pair<Mat, Mat> pose;
     tie(R, T) = getPose(E, matched_points1, matched_points2, intrinsics);
 
-    // 2 equivalent methods
-//    Mat mask_default = Mat::ones(1, better_matches.size(), CV_64F);
-//    displayMatches("Matches", frame1, keypoints1, frame2, keypoints2, better_matches, mask_default);
-    displayMatches("Matches 1", frame1, keypoints1, frame2, keypoints2, good_matches, mask_ransac);
+    Mat mask_default = Mat::ones(1, good_matches.size(), CV_64F);
+    // after Lowe
+    displayMatches("Matches Lowe", frame1, keypoints1, frame2, keypoints2, good_matches, mask_default);
+    // after Lowe & RANSAC
+    displayMatches("Matches Lowe & RANSAC", frame1, keypoints1, frame2, keypoints2, good_matches, mask_ransac);
+
+    vector<Point2f> matched_points_left, matched_points_right; // points that match
+    tie(matched_points_left, matched_points_right) = getMatchedPoints(better_matches, keypoints1, keypoints2);
+
+    // very "manual" solution for now
+    vector<Vector3f> points3d = getPoints3D(matched_points_left, matched_points_right,
+                                            depth_frame1, intr);
+//    for debugging
+    for(int i=0; i<points3d.size(); i++){
+        cout << points3d[i] << endl << endl;
+    }
+
     return 0;
 }
