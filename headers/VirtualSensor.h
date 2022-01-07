@@ -109,7 +109,7 @@ public:
   // get current color data
   Mat GetGrayscaleFrame() { return m_grayscaleFrame; }
   // get current depth data
-  Mat GetDepth() { return m_depthFrame; }
+  Mat GetDepthFrame() { return m_depthFrame; }
 
   // color camera info
   Eigen::Matrix3f GetCameraIntrinsics() { return m_intrinsics; }
