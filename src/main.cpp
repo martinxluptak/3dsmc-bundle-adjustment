@@ -26,9 +26,12 @@ vector<DMatch> filterMatchesLowe(const vector<vector<DMatch>>& knn_matches, cons
 
 vector<DMatch> filterMatchesRANSAC(const vector<DMatch>& matches, const Mat& mask){
     vector<DMatch> good_matches;
-    for (int i=0; i<matches.size(); i++)
+    cv::Mat flat = mask.reshape(1, mask.total() * mask.channels());
+    vector<uchar> mask_vec = mask.isContinuous()? flat : flat.clone();
+
+    for (int i=0; i<mask_vec.size(); i++)
     {
-        if (mask.at<int>(0, i) == 1) { // keep inliers only
+        if (mask_vec[i] == 1) { // keep inliers only
             good_matches.push_back(matches[i]);
         }
     }
@@ -61,29 +64,27 @@ pair<Mat, Mat> getPose(const Mat& E, const vector<Point2f>& matched_points1,
     return make_pair(R, T);
 }
 
-void displayMatches(const Mat& frame1, const vector<KeyPoint>& keypoints1,
+void displayMatches(string img_name, const Mat& frame1, const vector<KeyPoint>& keypoints1,
                     const Mat& frame2, const vector<KeyPoint>& keypoints2,
-                    const vector<DMatch>& matches){
+                    const vector<DMatch>& matches, const Mat& mask){
     Mat img_out;
     drawMatches(frame1, keypoints1, frame2, keypoints2, matches,
                 img_out, Scalar::all(-1), Scalar::all(-1),
-                std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+                mask, DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
     // show detected matches
-    imshow("Matches", img_out);
+    imshow(img_name, img_out);
     waitKey();
 };
 
 
 int main() {
-    std::string filenameIn =
-            std::string("/home/witek/Desktop/TUM/3d_scanning/3dsmc-bundle-adjustment/data/rgbd_dataset_freiburg1_xyz/");
+    string filenameIn = string(".../rgbd_dataset_freiburg1_xyz/"); // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
 
     // load video
     cout << "Initialize virtual sensor..." << endl;
     VirtualSensor sensor(5);
     if (!sensor.Init(filenameIn)) {
-        std::cout << "Failed to initialize the sensor!\nCheck file path!"
-                  << std::endl;
+        cout << "Failed to initialize the sensor!\nCheck file path!" << endl;
         return -1;
     }
 
@@ -115,7 +116,8 @@ int main() {
     matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
 
     // filter matches using Lowe's ratio test
-    vector<DMatch> good_matches = filterMatchesLowe(knn_matches, 1.0);
+    vector<DMatch> good_matches = filterMatchesLowe(knn_matches, 0.9);
+    cout << "detected matches after Lowe: " << good_matches.size() << endl;
 
     vector<Point2f> matched_points1, matched_points2; // points that match
     tie(matched_points1, matched_points2) = getMatchedPoints(good_matches, keypoints1, keypoints2);
@@ -127,16 +129,26 @@ int main() {
 
     // filter matches using RANSAC, get essential matrix
     Mat mask_ransac;
-    Mat E = findEssentialMat(matched_points1, matched_points2, intrinsics, RANSAC, 0.9999, 1.0, mask_ransac);
+    Mat E = findEssentialMat(matched_points1, matched_points2, intrinsics, RANSAC, 0.9999, 2.0, mask_ransac);
+
+    // debugging
+//    cv::Mat flat = mask_ransac.reshape(1, mask_ransac.total()*mask_ransac.channels());
+//    vector<uchar> mask_ransac_vec = mask_ransac.isContinuous()? flat : flat.clone();
+//    cout << mask_ransac_vec.size() << endl;
+//    cout << count(mask_ransac_vec.begin(), mask_ransac_vec.end(), 1) << endl;
+
     vector<DMatch> better_matches = filterMatchesRANSAC(good_matches, mask_ransac);
+//    cout << mask_ransac.size() << endl;
+    cout << "detected matches after RANSAC: " << better_matches.size() << endl;
 
     // get rotation and translation
     Mat R, T;
     pair<Mat, Mat> pose;
     tie(R, T) = getPose(E, matched_points1, matched_points2, intrinsics);
 
-    displayMatches(frame1, keypoints1, frame2, keypoints2, better_matches);
-
+    // 2 equivalent methods
+//    Mat mask_default = Mat::ones(1, better_matches.size(), CV_64F);
+//    displayMatches("Matches", frame1, keypoints1, frame2, keypoints2, better_matches, mask_default);
+    displayMatches("Matches 1", frame1, keypoints1, frame2, keypoints2, good_matches, mask_ransac);
     return 0;
 }
-
