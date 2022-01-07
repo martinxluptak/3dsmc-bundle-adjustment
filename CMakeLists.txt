@@ -9,7 +9,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/build/conanbuildinfo.cmake")
 set(CONAN_DISABLE_CHECK_COMPILER OFF INTERNAL "Disable compiler compatibility check (for Visual Studio).")
 conan_basic_setup()
 
-set(OpenCV_DIR ".../build_opencv") # SET TO <your_path>/lib/build_opencv
+set(OpenCV_DIR ".../lib/build_opencv") # SET TO <your_path>/lib/build_opencv
 
 message(STATUS "===Are these directories correct?===")
 message(STATUS "opencv_DIR:${OpenCV_DIR}")
@@ -22,11 +22,12 @@ include_directories(headers ${OpenCV_INCLUDE_DIRS}) # uncomment if OpenCV includ
 set(HEADER_FILES
         "headers/Eigen.h"
         "headers/VirtualSensor.h"
+        "headers/Map3D.h"
         )
 
 set(SOURCE_FILES
         src/main.cpp
-        )
+        src/Map3D.cpp)
 
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS})
