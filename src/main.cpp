@@ -60,8 +60,8 @@ pair<Mat, Mat> getPose(const Mat& E, const vector<Point2f>& matched_points1,
 {
     Mat R, T;
     recoverPose(E, matched_points1, matched_points2, intrinsics, R, T);
-    cout << "rotation: " << R << endl;
-    cout << "translation: " << T << endl;
+//    cout << "rotation: " << R << endl;
+//    cout << "translation: " << T << endl;
     return make_pair(R, T);
 }
 
@@ -77,13 +77,18 @@ void displayMatches(string img_name, const Mat& frame1, const vector<KeyPoint>& 
     waitKey();
 };
 
+struct frame_correspondences{
+    vector<Point2f> frame1;
+    vector<Point2f> frame2;
+};
+
 // saves points with -Inf depth
 // TODO: skip those points!
-vector<Vector3f> getPoints3D(const vector<Point2f>& matched_points_left, const vector<Point2f>& matched_points_right,
+vector<Vector3f> getPoints3D(const frame_correspondences& cs1,
                              const Mat& depth_frame1, const Matrix3f& intrinsics)
 {
     vector<Vector3f> points3d;
-    for (auto& point2d : matched_points_left)
+    for (auto& point2d : cs1.frame1)
     {
         int u = static_cast<int>(point2d.x);
         int v = static_cast<int>(point2d.y);
@@ -98,108 +103,140 @@ vector<Vector3f> getPoints3D(const vector<Point2f>& matched_points_left, const v
     return points3d;
 }
 
-
-int main() {
-
-    // test
-    int a=12, b=3, c;
-    c = sum(a, b);
-    cout << "sum: " << c;
-
-
-    string filenameIn = string(".../rgbd_dataset_freiburg1_xyz/"); // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
-
-    // load video
-    cout << "Initialize virtual sensor..." << endl;
-    VirtualSensor sensor(5);
-    if (!sensor.Init(filenameIn)) {
-        cout << "Failed to initialize the sensor!\nCheck file path!" << endl;
-        return -1;
-    }
-
-    // store a first frame as a reference frame;
-    // all next frames are tracked relatively to the first frame
-    sensor.ProcessNextFrame();
-    const auto &frame1 = sensor.GetGrayscaleFrame();
-    const auto &depth_frame1 = sensor.GetDepthFrame();
-    sensor.ProcessNextFrame();
-    const auto &frame2 = sensor.GetGrayscaleFrame();
-    const auto &depth_frame2 = sensor.GetDepthFrame();
-    waitKey();
-
-    if (frame1.empty()) {
-        cout << "Could not open or find the image!\n" << endl;
-        return -1;
-    }
-
-    // detect the keypoints and compute descriptors using ORB
-    int nFeatures = 1000;
-    vector<KeyPoint> keypoints1, keypoints2;
-    Mat descriptors1, descriptors2;
-    vector<vector<DMatch>> knn_matches;
-    Ptr<ORB> detector = ORB::create(nFeatures);
+void getORB(const Mat& frame1, const Mat& frame2,
+            vector<KeyPoint>& keypoints1, vector<KeyPoint>& keypoints2,
+            Mat& descriptors1, Mat& descriptors2, int& num_features) {
+    Ptr<ORB> detector = ORB::create(num_features);
     detector->detectAndCompute(frame1, noArray(), keypoints1, descriptors1);
     detector->detectAndCompute(frame2, noArray(), keypoints2, descriptors2);
+}
 
-    // match keypoints
+void matchKeypoints(const Mat& descriptors1, const Mat& descriptors2, vector<vector<DMatch>>& knn_matches){
     Ptr<DescriptorMatcher> matcher =
             DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
     matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+};
 
-    // filter matches using Lowe's ratio test
-    vector<DMatch> good_matches = filterMatchesLowe(knn_matches, 0.9);
-    cout << "detected matches after Lowe: " << good_matches.size() << endl;
 
-    vector<Point2f> matched_points1, matched_points2; // points that match
-    tie(matched_points1, matched_points2) = getMatchedPoints(good_matches, keypoints1, keypoints2);
 
-    // TODO: unify intrinsics
+
+
+
+
+
+
+int main() {
+
+    vector<frame_correspondences> video_correspondences;
+    int num_features = 1000;
+    int keyframe_increment = 100;
+    bool frame2_exists;
+
+    // TODO: unify intrinsics data formats
     Matrix3f intr;
     intr << 517.3, 0.0, 319.5,
             0.0, 516.5, 255.3,
             0.0, 0.0, 1.0;
-
     double intrinsics_data[] = {517.3, 0.0, 319.5,
                                 0.0, 516.5, 255.3,
                                 0.0, 0.0, 1.0};
     Mat intrinsics(3, 3, CV_64FC1, intrinsics_data);
 
+    string filename = string(".../rgbd_dataset_freiburg1_xyz/"); // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
 
-    // filter matches using RANSAC, get essential matrix
-    Mat mask_ransac;
-    Mat E = findEssentialMat(matched_points1, matched_points2, intrinsics, RANSAC, 0.9999, 2.0, mask_ransac);
+    // load video
+    cout << "Initialize virtual sensor..." << endl;
 
-    // debugging
-//    cv::Mat flat = mask_ransac.reshape(1, mask_ransac.total()*mask_ransac.channels());
-//    vector<uchar> mask_ransac_vec = mask_ransac.isContinuous()? flat : flat.clone();
-//    cout << mask_ransac_vec.size() << endl;
-//    cout << count(mask_ransac_vec.begin(), mask_ransac_vec.end(), 1) << endl;
+    // choose keyframes
+    VirtualSensor sensor(keyframe_increment);
+    if (!sensor.Init(filename)) {
+        cout << "Failed to initialize the sensor.\nCheck file path." << endl;
+        return -1;
+    }
 
-    vector<DMatch> better_matches = filterMatchesRANSAC(good_matches, mask_ransac);
-//    cout << mask_ransac.size() << endl;
-    cout << "detected matches after RANSAC: " << better_matches.size() << endl;
+    sensor.ProcessNextFrame(); // load frame 0
 
-    // get rotation and translation
-    Mat R, T;
-    pair<Mat, Mat> pose;
-    tie(R, T) = getPose(E, matched_points1, matched_points2, intrinsics);
+//    while(true){
 
-    Mat mask_default = Mat::ones(1, good_matches.size(), CV_64F);
-    // after Lowe
-    displayMatches("Matches Lowe", frame1, keypoints1, frame2, keypoints2, good_matches, mask_default);
-    // after Lowe & RANSAC
-    displayMatches("Matches Lowe & RANSAC", frame1, keypoints1, frame2, keypoints2, good_matches, mask_ransac);
+    while(true){
+        vector<KeyPoint> keypoints1, keypoints2;
+        Mat descriptors1, descriptors2, mask_ransac, E, R, T, mask_default;
+        vector<vector<DMatch>> knn_matches;
+        frame_correspondences correspondences;
+        vector<DMatch> lowe_matches, ransac_matches;
+        vector<Point2f> matched_points_lowe1, matched_points_lowe2;
+        vector<Point2f> matched_points_ransac1, matched_points_ransac2;
 
-    vector<Point2f> matched_points_left, matched_points_right; // points that match
-    tie(matched_points_left, matched_points_right) = getMatchedPoints(better_matches, keypoints1, keypoints2);
+        const auto &frame1 = sensor.GetGrayscaleFrame();
+        const auto &depth_frame1 = sensor.GetDepthFrame(); // TODO: correct corresponding depth frame?
 
-    // very "manual" solution for now
-    vector<Vector3f> points3d = getPoints3D(matched_points_left, matched_points_right,
-                                            depth_frame1, intr);
-//    for debugging
-    for(int i=0; i<points3d.size(); i++){
-        cout << points3d[i] << endl << endl;
+        frame2_exists = sensor.ProcessNextFrame();
+        const auto &frame2 = sensor.GetGrayscaleFrame();
+        const auto &depth_frame2 = sensor.GetDepthFrame(); // TODO: correct corresponding depth frame?
+//        int num = sensor.GetCurrentFrameCnt();
+//        cout << num << endl;
+
+        if (frame1.empty()) {
+            cout << "Could not open or find the image.\n" << endl;
+            break;
+        }
+
+        if (!frame2_exists) {
+            cout << "No more keyframe pairs.\n" << endl;
+            break;
+        }
+
+        // detect keypoints and compute descriptors using ORB
+        getORB(frame1, frame2, keypoints1, keypoints2, descriptors1, descriptors2, num_features);
+
+        // match keypoints
+        matchKeypoints(descriptors1, descriptors2, knn_matches);
+
+        // filter matches using Lowe's ratio test
+        lowe_matches = filterMatchesLowe(knn_matches, 0.9);
+        cout << "detected Lowe matches: " << lowe_matches.size() << endl;
+        tie(matched_points_lowe1, matched_points_lowe2) = getMatchedPoints(lowe_matches, keypoints1, keypoints2);
+
+        // get essential matrix, perform RANSAC
+        E = findEssentialMat(matched_points_lowe1, matched_points_lowe2, intrinsics, RANSAC, 0.9999, 2.0, mask_ransac);
+
+        // filter matches using RANSAC
+        ransac_matches = filterMatchesRANSAC(lowe_matches, mask_ransac);
+        cout << "detected matches after RANSAC: " << ransac_matches.size() << endl;
+        tie(matched_points_ransac1, matched_points_ransac2) = getMatchedPoints(ransac_matches, keypoints1, keypoints2);
+
+        // register corresponding points
+
+        cout << "here1" << endl;
+
+        correspondences.frame1 = matched_points_ransac1;
+        correspondences.frame2 = matched_points_ransac2;
+        video_correspondences.push_back(correspondences);
+
+        // get rotation and translation
+        tie(R, T) = getPose(E, matched_points_lowe1, matched_points_lowe2, intrinsics);
+
+        // display matches
+//        mask_default = Mat::ones(1, lowe_matches.size(), CV_64F);
+//        displayMatches("Matches Lowe", frame1, keypoints1, frame2, keypoints2, lowe_matches, mask_default);
+//        displayMatches("Matches Lowe & RANSAC", frame1, keypoints1, frame2, keypoints2, lowe_matches, mask_ransac);
+
+        // register 3d point (very "manual" solution for now)
+//        vector<Vector3f> points3d = getPoints3D(correspondences, depth_frame1, intr);
+
+//    debugging
+//        for(int i=0; i<points3d.size(); i++){
+//            cout << points3d[i] << endl << endl;
+//        }
+//        cout << points3d[2] << endl;
+
     }
 
     return 0;
 }
+
+// debugging
+//    cv::Mat flat = mask_ransac.reshape(1, mask_ransac.total()*mask_ransac.channels());
+//    vector<uchar> mask_ransac_vec = mask_ransac.isContinuous()? flat : flat.clone();
+//    cout << mask_ransac_vec.size() << endl;
+//    cout << count(mask_ransac_vec.begin(), mask_ransac_vec.end(), 1) << endl;
