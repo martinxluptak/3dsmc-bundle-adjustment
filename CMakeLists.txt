@@ -22,12 +22,17 @@ include_directories(headers ${OpenCV_INCLUDE_DIRS}) # uncomment if OpenCV includ
 set(HEADER_FILES
         "headers/Eigen.h"
         "headers/VirtualSensor.h"
+        "headers/Detection.h"
+        "headers/Matching.h"
         "headers/Map3D.h"
         )
 
 set(SOURCE_FILES
         src/main.cpp
-        src/Map3D.cpp)
+        src/Detection.cpp
+        src/Matching.cpp
+        src/Map3D.cpp
+        )
 
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS})
