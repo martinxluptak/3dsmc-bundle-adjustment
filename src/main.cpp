@@ -5,7 +5,7 @@
 #include "Detection.cpp" // TODO: switch to Detection.h!
 #include "Matching.cpp" // TODO: switch to Matching.h!
 #include "Map3D.cpp" // TODO: switch to Map3D.h!
-//#include <Eigen/Dense>
+#include <Eigen/Dense>
 using namespace cv;
 using namespace std;
 using namespace Eigen;
@@ -14,8 +14,10 @@ using namespace Eigen;
 int main() {
 
     vector<frame_correspondences> video_correspondences;
+    vector<frame1_geometry> video_geometry;
     int num_features = 1000;
-    int keyframe_increment = 100;
+    int keyframe_increment = 10;
+    int iterations = 5;
     bool frame2_exists;
 
     // TODO: unify intrinsics data formats
@@ -42,14 +44,18 @@ int main() {
 
     sensor.ProcessNextFrame(); // load frame 0
 
-    while(true){
+//    while(true)
+    for(int i=0; i<iterations; i++){
         vector<KeyPoint> keypoints1, keypoints2;
-        Mat descriptors1, descriptors2, mask_ransac, E, R, T, mask_default;
+        Mat descriptors1, descriptors2, mask_ransac, E, mask_default;
         vector<vector<DMatch>> knn_matches;
         frame_correspondences correspondences;
+        frame1_geometry frame;
         vector<DMatch> lowe_matches, ransac_matches;
         vector<Point2f> matched_points_lowe1, matched_points_lowe2;
         vector<Point2f> matched_points_ransac1, matched_points_ransac2;
+        Matrix4f extrinsics;
+        vector<Vector3f> points3d_before, point3d_after;
 
         const auto &frame1 = sensor.GetGrayscaleFrame();
         const auto &depth_frame1 = sensor.GetDepthFrame(); // TODO: correct corresponding depth frame?
@@ -66,7 +72,7 @@ int main() {
         }
 
         if (!frame2_exists) {
-            cout << "No more keyframe pairs.\n" << endl;
+            cout << endl << "No more keyframe pairs.\n" << endl;
             break;
         }
 
@@ -90,32 +96,29 @@ int main() {
         tie(matched_points_ransac1, matched_points_ransac2) = getMatchedPoints(ransac_matches, keypoints1, keypoints2);
 
         // register corresponding points
-
-        cout << "here1" << endl;
-
         correspondences.frame1 = matched_points_ransac1;
         correspondences.frame2 = matched_points_ransac2;
         video_correspondences.push_back(correspondences);
 
-        // get rotation and translation
-        tie(R, T) = getPose(E, matched_points_lowe1, matched_points_lowe2, intrinsics);
+        // debugging TODO: fix getPoints3D_before - stops loading the data
+        // (even though the loop below works)
+        for (auto& point2d : correspondences.frame2){
+            cout << "corresp. point: " << point2d << endl;
+        }
 
         // display matches
 //        mask_default = Mat::ones(1, lowe_matches.size(), CV_64F);
 //        displayMatches("Matches Lowe", frame1, keypoints1, frame2, keypoints2, lowe_matches, mask_default);
 //        displayMatches("Matches Lowe & RANSAC", frame1, keypoints1, frame2, keypoints2, lowe_matches, mask_ransac);
 
-        // register 3d point (very "manual" solution for now)
-//        vector<Vector3f> points3d = getPoints3D(correspondences, depth_frame1, intr);
+        // get rotation and translation
+        frame.extrinsics = getExtrinsics(E, matched_points_lowe1, matched_points_lowe2, intrinsics);
 
-//    debugging
-//        for(int i=0; i<points3d.size(); i++){
-//            cout << points3d[i] << endl << endl;
-//        }
-//        cout << points3d[2] << endl;
-
+        // register 3d points
+        frame.points3d_before = getPoints3D_before(correspondences, depth_frame1, intr);
+        frame.points3d_after = getPoints3D_after(frame);
+        video_geometry.push_back(frame);
     }
-
     return 0;
 }
 

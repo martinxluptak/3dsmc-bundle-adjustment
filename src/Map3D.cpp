@@ -5,33 +5,60 @@
 #include "Map3D.h"
 
 
-// saves points with -Inf depth
-// TODO: skip those image points!
-vector<Vector3f> getPoints3D(const frame_correspondences& cs1,
-                             const Mat& depth_frame1, const Matrix3f& intrinsics)
+// TODO: skip points with -Inf depth!
+vector<Vector3f> getPoints3D_before(const frame_correspondences& correspondences,
+                                    const Mat& depth_frame1, const Matrix3f& intrinsics)
 {
+    Vector3f point3d;
     vector<Vector3f> points3d;
-    for (auto& point2d : cs1.frame1)
+
+
+    for (auto& point2d : correspondences.frame1)
     {
+        cout << "corresp. point func: " << point2d << endl;
+
         int u = static_cast<int>(point2d.x);
+
         int v = static_cast<int>(point2d.y);
 
-        v = point2d.y;
         float z = depth_frame1.at<float>(u, v);
         float x = z * (u - intrinsics(0,2)) / intrinsics(0,0);
         float y = z * (v - intrinsics(1,2)) / intrinsics(1,1);
-        Vector3f point3d(x, y, z);
+
+        point3d << x, y, z;
         points3d.push_back(point3d);
     }
     return points3d;
 }
 
-pair<Mat, Mat> getPose(const Mat& E, const vector<Point2f>& matched_points1,
+
+vector<Vector3f> getPoints3D_after(const frame1_geometry& frame){
+    Vector3f point3d;
+    vector<Vector3f> points3d;
+
+    for (auto& point3d_before: frame.points3d_before){
+        point3d = frame.extrinsics.block(0, 0, 3, 4) * point3d_before;
+        points3d.push_back(point3d);
+    }
+    return points3d;
+}
+
+
+Matrix4f getExtrinsics(const Mat& E, const vector<Point2f>& matched_points1,
                        const vector<Point2f>& matched_points2, const Mat& intrinsics)
 {
     Mat R, T;
+    Matrix3f eigenR;
+    Vector3f eigenT;
+    Matrix4f extrinsics = Matrix4f::Identity();
     recoverPose(E, matched_points1, matched_points2, intrinsics, R, T);
 //    cout << "rotation: " << R << endl;
 //    cout << "translation: " << T << endl;
-    return make_pair(R, T);
+
+    cv2eigen(R, eigenR);
+    cv2eigen(T, eigenT);
+    extrinsics.block(0, 0, 3, 3) = eigenR;
+    extrinsics.block(0, 3, 3, 1) = eigenT;
+
+    return extrinsics;
 }

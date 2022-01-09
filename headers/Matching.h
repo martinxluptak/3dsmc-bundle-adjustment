@@ -8,8 +8,12 @@
 
 #include "opencv2/features2d.hpp"
 #include "opencv2/highgui.hpp"
+#include <opencv2/core/eigen.hpp>
+#include "opencv2/calib3d.hpp"
+#include <Eigen/Dense>
 using namespace std;
 using namespace cv;
+using namespace Eigen;
 
 
 void matchKeypoints(const Mat& descriptors1, const Mat& descriptors2, vector<vector<DMatch>>& knn_matches);
