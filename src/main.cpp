@@ -15,6 +15,7 @@ int main() {
 
     vector<frame_correspondences> video_correspondences;
     vector<frame1_geometry> video_geometry;
+    Matrix4f pose = Matrix4f::Identity();
     int num_features = 1000;
     int keyframe_increment = 10;
     int iterations = 5;
@@ -58,11 +59,11 @@ int main() {
         vector<Vector3f> points3d_before, point3d_after;
 
         const auto &frame1 = sensor.GetGrayscaleFrame();
-        const auto &depth_frame1 = sensor.GetDepthFrame(); // TODO: correct corresponding depth frame?
+        const auto &depth_frame1 = sensor.GetDepthFrame();
 
         frame2_exists = sensor.ProcessNextFrame();
         const auto &frame2 = sensor.GetGrayscaleFrame();
-        const auto &depth_frame2 = sensor.GetDepthFrame(); // TODO: correct corresponding depth frame?
+        const auto &depth_frame2 = sensor.GetDepthFrame();
 //        int num = sensor.GetCurrentFrameCnt();
 //        cout << num << endl;
 
@@ -100,9 +101,9 @@ int main() {
         correspondences.frame2 = matched_points_ransac2;
         video_correspondences.push_back(correspondences);
 
-        // debugging TODO: fix getPoints3D_before - stops loading the data
+        // debugging TODO: fix getLocalPoints3D - stops loading the data
         // (even though the loop below works)
-        for (auto& point2d : correspondences.frame2){
+        for (auto& point2d : correspondences.frame1){
             cout << "corresp. point: " << point2d << endl;
         }
 
@@ -111,12 +112,15 @@ int main() {
 //        displayMatches("Matches Lowe", frame1, keypoints1, frame2, keypoints2, lowe_matches, mask_default);
 //        displayMatches("Matches Lowe & RANSAC", frame1, keypoints1, frame2, keypoints2, lowe_matches, mask_ransac);
 
-        // get rotation and translation
-        frame.extrinsics = getExtrinsics(E, matched_points_lowe1, matched_points_lowe2, intrinsics);
+        // get rotation and translation between 2 neighbouring frames
+        extrinsics = getExtrinsics(E, correspondences.frame1,
+                                   correspondences.frame2, intrinsics);
+        frame.pose = pose; // global pose for the current frame
+        pose = pose * extrinsics; // global pose for the next frame
 
         // register 3d points
-        frame.points3d_before = getPoints3D_before(correspondences, depth_frame1, intr);
-        frame.points3d_after = getPoints3D_after(frame);
+        frame.points3d_local = getLocalPoints3D(correspondences, depth_frame1, intr);
+        frame.points3d_global = getGlobalPoints3D(frame);
         video_geometry.push_back(frame);
     }
     return 0;

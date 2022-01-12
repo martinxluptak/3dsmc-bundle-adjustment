@@ -5,20 +5,18 @@
 #include "Map3D.h"
 
 
-// TODO: skip points with -Inf depth!
-vector<Vector3f> getPoints3D_before(const frame_correspondences& correspondences,
-                                    const Mat& depth_frame1, const Matrix3f& intrinsics)
+vector<Vector3f> getLocalPoints3D(const frame_correspondences& correspondences,
+                                  const Mat& depth_frame1, const Matrix3f& intrinsics)
 {
     Vector3f point3d;
     vector<Vector3f> points3d;
 
-
     for (auto& point2d : correspondences.frame1)
     {
+        // debugging
         cout << "corresp. point func: " << point2d << endl;
 
         int u = static_cast<int>(point2d.x);
-
         int v = static_cast<int>(point2d.y);
 
         float z = depth_frame1.at<float>(u, v);
@@ -32,12 +30,12 @@ vector<Vector3f> getPoints3D_before(const frame_correspondences& correspondences
 }
 
 
-vector<Vector3f> getPoints3D_after(const frame1_geometry& frame){
+vector<Vector3f> getGlobalPoints3D(const frame1_geometry& frame){
     Vector3f point3d;
     vector<Vector3f> points3d;
 
-    for (auto& point3d_before: frame.points3d_before){
-        point3d = frame.extrinsics.block(0, 0, 3, 4) * point3d_before;
+    for (auto& point3d_local: frame.points3d_local){
+        point3d = frame.pose.block(0, 0, 3, 4) * point3d_local;
         points3d.push_back(point3d);
     }
     return points3d;
@@ -59,6 +57,5 @@ Matrix4f getExtrinsics(const Mat& E, const vector<Point2f>& matched_points1,
     cv2eigen(T, eigenT);
     extrinsics.block(0, 0, 3, 3) = eigenR;
     extrinsics.block(0, 3, 3, 1) = eigenT;
-
     return extrinsics;
 }

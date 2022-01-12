@@ -14,17 +14,17 @@ using namespace Eigen;
 
 
 struct frame1_geometry{
-    Matrix4f extrinsics;
-    vector<Vector3f> points3d_before; //for frame2 of the pair, before applying extrinsics
-    vector<Vector3f> points3d_after; // for frame2 of the pair, after applying extrinsics
+    Matrix4f pose;
+    vector<Vector3f> points3d_local; // relative to the current frame
+    vector<Vector3f> points3d_global; // relative to frame 1
 };
 
 
-vector<Vector3f> getPoints3D_before(const frame_correspondences& correspondences, const Mat& depth_frame1,
-                                    const Matrix3f& intrinsics);
+vector<Vector3f> getLocalPoints3D(const frame_correspondences& correspondences, const Mat& depth_frame1,
+                                  const Matrix3f& intrinsics);
 
 
-vector<Vector3f> getPoints3D_after(const frame1_geometry& frame);
+vector<Vector3f> getGlobalPoints3D(const frame1_geometry& frame);
 
 
 Matrix4f getExtrinsics(const Mat& E, const vector<Point2f>& matched_points1,
