@@ -45,8 +45,8 @@ int main() {
 
     sensor.ProcessNextFrame(); // load frame 0
 
-//    while(true)
-    for(int i=0; i<iterations; i++){
+//    for(int i=0; i<iterations; i++)
+    while(true){
         vector<KeyPoint> keypoints1, keypoints2;
         Mat descriptors1, descriptors2, mask_ransac, E, mask_default;
         vector<vector<DMatch>> knn_matches;
