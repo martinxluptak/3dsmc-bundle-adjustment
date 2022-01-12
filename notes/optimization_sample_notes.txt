@@ -348,6 +348,6 @@ Map errors after optimization:
     //    0.090990664969335472 |    0.45148419073483592 -0.0099704194108703563    0.66697813373471693
     //    0.034617255460647096 | 0.52423381988112416 0.22131796624773428 0.75095148206209583
     //  12) optimizing over the intrinsics too yield worse results and a weird intrinsic matrix (probably I'm not giving enough info?)
-    //  13) Going back to the 1.5km five_frames file. Plotting in Matlab the location of the points, it is evident that they don't end up in the right spots of the depth map,     //  due to some noise therein (play check_file.m)
+    //  13) Going back to the 1.5km five_frames file. Plotting in Matlab the location of the points, it is evident that they don't end up in the right spots of the depth map,     //  due to some noise therein (play check_file.m). This is also due to some misalignement in the depth files, with the rgb images.
 
 Obs. Such map errors are large but compatible. The main reason for this is a correspondence slighly off, so that the depth map changes drastically
