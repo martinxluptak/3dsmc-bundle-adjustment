@@ -5,6 +5,7 @@
 #include "VirtualSensor.h"
 #include "opencv2/calib3d.hpp"
 #include "opencv2/core.hpp"
+#include "sophus/se3.hpp"
 #include <iostream>
 using namespace cv;
 using namespace std;
@@ -14,7 +15,7 @@ int main() {
 
   vector<frame_correspondences> video_correspondences;
   vector<frame1_geometry> video_geometry;
-  Matrix4f pose = Matrix4f::Identity();
+  Sophus::SE3f pose;
   int num_features = 1000;
   int keyframe_increment = 10;
   int iterations = 5;
@@ -53,7 +54,7 @@ int main() {
     vector<DMatch> lowe_matches, ransac_matches;
     vector<Point2f> matched_points_lowe1, matched_points_lowe2;
     vector<Point2f> matched_points_ransac1, matched_points_ransac2;
-    Matrix4f extrinsics;
+    Sophus::SE3f extrinsics;
     vector<Vector3f> points3d_before, point3d_after;
 
     const auto &frame1 = sensor.GetGrayscaleFrame();
@@ -119,8 +120,8 @@ int main() {
     // get rotation and translation between 2 neighbouring frames
     extrinsics = getExtrinsics(E, correspondences.frame1,
                                correspondences.frame2, intrinsics);
-    frame.pose = pose;        // global pose for the current frame
-    pose = pose * extrinsics; // global pose for the next frame
+    frame.pose = Sophus::SE3f(pose); // global pose for the current frame
+    pose = pose * extrinsics;        // global pose for the next frame
 
     // register 3d points
     frame.points3d_local =
