@@ -33,7 +33,7 @@ set(SOURCE_FILES
         src/Matching.cpp
         src/Map3D.cpp
         )
-
+include_directories("headers/")
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME} ${CONAN_LIBS} ${OpenCV_LIBS})
 
