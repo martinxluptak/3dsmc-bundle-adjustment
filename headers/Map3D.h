@@ -14,19 +14,19 @@ using namespace cv;
 using namespace Eigen;
 
 struct frame1_geometry {
-  Sophus::SE3f pose;
-  vector<Vector3f> points3d_local;  // relative to the current frame
-  vector<Vector3f> points3d_global; // relative to frame 1
+  Sophus::SE3d pose;
+  vector<Vector3d> points3d_local;  // relative to the current frame
+  vector<Vector3d> points3d_global; // relative to frame 1
 };
 
-vector<Vector3f> getLocalPoints3D(const frame_correspondences &correspondences,
+vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &correspondences,
                                   const Mat &depth_frame1,
                                   const Matrix3f &intrinsics);
 
-vector<Vector3f> getGlobalPoints3D(const frame1_geometry &frame);
+vector<Vector3d> getGlobalPoints3D(const frame1_geometry &frame);
 
-Sophus::SE3f getExtrinsics(const Mat &E, const vector<Point2f> &matched_points1,
-                           const vector<Point2f> &matched_points2,
+Sophus::SE3d getExtrinsics(const Mat &E, const vector<Point2d> &matched_points1,
+                           const vector<Point2d> &matched_points2,
                            const Mat &intrinsics);
 
 #endif // BUNDLE_ADJUSTMENT_MAP3D_H

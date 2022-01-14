@@ -4,18 +4,18 @@
 
 #include "Map3D.h"
 
-vector<Vector3f> getLocalPoints3D(const frame_correspondences &correspondences,
+vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
                                   const Mat &depth_frame1,
                                   const Matrix3f &intrinsics) {
-  Vector3f point3d;
-  vector<Vector3f> points3d;
+  Vector3d point3d;
+  vector<Vector3d> points3d;
 
-  for (auto &point2d : correspondences.frame1) {
+  for (auto &point2d : points) {
     // debugging
-    cout << "corresp. point func: " << point2d << endl;
+    //    cout << "corresp. point func: " << point2d.pt << endl;
 
-    int u = static_cast<int>(point2d.x);
-    int v = static_cast<int>(point2d.y);
+    int u = static_cast<int>(point2d.pt.x);
+    int v = static_cast<int>(point2d.pt.y);
 
     float z = depth_frame1.at<float>(v, u);
     float x = z * (u - intrinsics(0, 2)) / intrinsics(0, 0);
@@ -27,9 +27,9 @@ vector<Vector3f> getLocalPoints3D(const frame_correspondences &correspondences,
   return points3d;
 }
 
-vector<Vector3f> getGlobalPoints3D(const frame1_geometry &frame) {
-  Vector3f point3d;
-  vector<Vector3f> points3d;
+vector<Vector3d> getGlobalPoints3D(const frame1_geometry &frame) {
+  Vector3d point3d;
+  vector<Vector3d> points3d;
 
   for (auto &point3d_local : frame.points3d_local) {
     point3d = frame.pose * point3d_local;
@@ -38,13 +38,13 @@ vector<Vector3f> getGlobalPoints3D(const frame1_geometry &frame) {
   return points3d;
 }
 
-Sophus::SE3f getExtrinsics(const Mat &E, const vector<Point2f> &matched_points1,
-                           const vector<Point2f> &matched_points2,
+Sophus::SE3d getExtrinsics(const Mat &E, const vector<Point2d> &matched_points1,
+                           const vector<Point2d> &matched_points2,
                            const Mat &intrinsics) {
   Mat R, T;
-  Matrix3f eigenR;
-  Vector3f eigenT;
-  Sophus::SE3f extrinsics;
+  Matrix3d eigenR;
+  Vector3d eigenT;
+  Sophus::SE3d extrinsics;
   recoverPose(E, matched_points1, matched_points2, intrinsics, R, T);
   //    cout << "rotation: " << R << endl;
   //    cout << "translation: " << T << endl;
@@ -52,5 +52,5 @@ Sophus::SE3f getExtrinsics(const Mat &E, const vector<Point2f> &matched_points1,
   cv2eigen(R, eigenR);
   cv2eigen(T, eigenT);
 
-  return Sophus::SE3f(eigenR, eigenT);
+  return Sophus::SE3d(eigenR, eigenT);
 }

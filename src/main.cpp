@@ -15,7 +15,7 @@ int main() {
 
   vector<frame_correspondences> video_correspondences;
   vector<frame1_geometry> video_geometry;
-  Sophus::SE3f pose;
+  Sophus::SE3d current_pose;
   int num_features = 1000;
   int keyframe_increment = 10;
   int iterations = 5;
@@ -52,10 +52,11 @@ int main() {
     frame_correspondences correspondences;
     frame1_geometry frame;
     vector<DMatch> lowe_matches, ransac_matches;
-    vector<Point2f> matched_points_lowe1, matched_points_lowe2;
-    vector<Point2f> matched_points_ransac1, matched_points_ransac2;
-    Sophus::SE3f extrinsics;
-    vector<Vector3f> points3d_before, point3d_after;
+    vector<Point2d> matched_points_lowe1, matched_points_lowe2;
+    vector<Point2d> matched_points_ransac1, matched_points_ransac2;
+    // Transfromation from frame 2 to 1
+    Sophus::SE3d T_1_2;
+    vector<Vector3d> points3d_before, point3d_after;
 
     const auto &frame1 = sensor.GetGrayscaleFrame();
     const auto &depth_frame1 = sensor.GetDepthFrame();
@@ -85,30 +86,29 @@ int main() {
 
     // filter matches using Lowe's ratio test
     lowe_matches = filterMatchesLowe(knn_matches, 0.9);
-    cout << "detected Lowe matches: " << lowe_matches.size() << endl;
+    //    cout << "detected Lowe matches: " << lowe_matches.size() << endl;
     tie(matched_points_lowe1, matched_points_lowe2) =
         getMatchedPoints(lowe_matches, keypoints1, keypoints2);
 
-    // get essential matrix, perform RANSAC
-    E = findEssentialMat(matched_points_lowe1, matched_points_lowe2, intrinsics,
-                         RANSAC, 0.9999, 2.0, mask_ransac);
+    // register 3d points
+    frame.points3d_local = getLocalPoints3D(keypoints2, depth_frame2, intr);
+    vector<Vector3d> frame1_points_3d =
+        getLocalPoints3D(keypoints1, depth_frame1, intr);
+    vector<DMatch> inliers;
+    initializeRelativePose(frame1_points_3d, frame.points3d_local, lowe_matches,
+                           inliers, T_1_2);
 
-    // filter matches using RANSAC
-    ransac_matches = filterMatchesRANSAC(lowe_matches, mask_ransac);
-    cout << "detected matches after RANSAC: " << ransac_matches.size() << endl;
-    tie(matched_points_ransac1, matched_points_ransac2) =
-        getMatchedPoints(ransac_matches, keypoints1, keypoints2);
-
+    cout << "inliers found: " << inliers.size() << endl;
     // register corresponding points
-    correspondences.frame1 = matched_points_ransac1;
-    correspondences.frame2 = matched_points_ransac2;
-    video_correspondences.push_back(correspondences);
+    //    correspondences.frame1 = matched_points_ransac1;
+    //    correspondences.frame2 = matched_points_ransac2;
+    //    video_correspondences.push_back(correspondences);
 
     // debugging TODO: fix getLocalPoints3D - stops loading the data
     // (even though the loop below works)
-    for (auto &point2d : correspondences.frame1) {
-      cout << "corresp. point: " << point2d << endl;
-    }
+    //    for (auto &point2d : correspondences.frame1) {
+    //      cout << "corresp. point: " << point2d << endl;
+    //    }
 
     // display matches
     //        mask_default = Mat::ones(1, lowe_matches.size(), CV_64F);
@@ -118,14 +118,10 @@ int main() {
     //        lowe_matches, mask_ransac);
 
     // get rotation and translation between 2 neighbouring frames
-    extrinsics = getExtrinsics(E, correspondences.frame1,
-                               correspondences.frame2, intrinsics);
-    frame.pose = Sophus::SE3f(pose); // global pose for the current frame
-    pose = pose * extrinsics;        // global pose for the next frame
+    frame.pose =
+        T_1_2.inverse() * current_pose; // global pose for the current frame
+    current_pose = frame.pose;          // global pose for the next frame
 
-    // register 3d points
-    frame.points3d_local =
-        getLocalPoints3D(correspondences, depth_frame1, intr);
     frame.points3d_global = getGlobalPoints3D(frame);
     video_geometry.push_back(frame);
   }

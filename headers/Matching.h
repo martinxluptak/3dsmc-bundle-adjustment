@@ -9,10 +9,15 @@
 #include "opencv2/calib3d.hpp"
 #include "opencv2/features2d.hpp"
 #include "opencv2/highgui.hpp"
+#include "opengv/point_cloud/PointCloudAdapter.hpp"
+#include "opengv/sac/Ransac.hpp"
+#include "opengv/sac_problems/point_cloud/PointCloudSacProblem.hpp"
 #include <opencv2/core/eigen.hpp>
+#include <sophus/se3.hpp>
 using namespace std;
 using namespace cv;
 using namespace Eigen;
+using namespace opengv;
 
 void matchKeypoints(const Mat &descriptors1, const Mat &descriptors2,
                     vector<vector<DMatch>> &knn_matches);
@@ -23,7 +28,7 @@ vector<DMatch> filterMatchesLowe(const vector<vector<DMatch>> &knn_matches,
 vector<DMatch> filterMatchesRANSAC(const vector<DMatch> &matches,
                                    const Mat &mask);
 
-pair<vector<Point2f>, vector<Point2f>>
+pair<vector<Point2d>, vector<Point2d>>
 getMatchedPoints(const vector<DMatch> &matches,
                  const vector<KeyPoint> &keypoints1,
                  const vector<KeyPoint> &keypoints2);
@@ -33,9 +38,14 @@ void displayMatches(string img_name, const Mat &frame1,
                     const vector<KeyPoint> &keypoints2,
                     const vector<DMatch> &matches, const Mat &mask);
 
+void initializeRelativePose(const vector<Vector3d> &points1,
+                            const vector<Vector3d> &points2,
+                            const vector<DMatch> &matches,
+                            vector<DMatch> &inliers, Sophus::SE3d &pose);
+
 struct frame_correspondences {
-  vector<Point2f> frame1;
-  vector<Point2f> frame2;
+  vector<Point2d> frame1;
+  vector<Point2d> frame2;
 };
 
 #endif // BUNDLE_ADJUSTMENT_MATCHING_H
