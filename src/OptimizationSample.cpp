@@ -112,13 +112,50 @@ public:
                                                                                    depths(depths) {}
 
 
-private:
+protected:
     int index;
     vector<string> rgb_file, depth_file, gt_file; // TODO rename variable names AND getter/setters to plural
     vector<Vector2d> obs_pix; // observations in pixel coordinates
     vector<Sophus::SE3d> poses;
     vector<int> pose_indices;
     vector<double> depths;
+
+public:
+    void makeSynthetic(Matrix<double, 3, 3> &intrinsics) {
+
+        auto base_pose = poses[0];
+        auto base_pix = obs_pix[0];
+        auto base_depth = depths[0];
+        Vector3d p_W = base_pose.rotationMatrix() * base_depth * intrinsics.inverse() * base_pix.homogeneous() +
+                   base_pose.translation();
+
+        for (int i = 0; i < depths.size(); i++) {
+            // Take pixel of the first frame, reproject it into this frame
+
+            auto pose = poses[i];
+            Vector3d p_C = pose.rotationMatrix().transpose() * (p_W- pose.translation());
+            Vector3d h_pix = (intrinsics * p_C/p_C[2]);
+            obs_pix[i] = h_pix(seq(0,1));
+            obs_pix[i][0]+=(rand()%100-50)/100.0*.0;
+            obs_pix[i][1]+=(rand()%100-50)/100.0*.0;
+            depths[i] = p_C[2]+(rand()%100-50)/100.0*.0;
+
+        }
+    }
+
+    void putHere(Matrix<double,4,4> T){
+        for (int i = 0; i < depths.size(); i++) {
+            // Take pixel of the first frame, reproject it into this frame
+
+            auto pose = poses[i];
+            poses[i] = Sophus::SE3d(T.inverse()*pose.matrix());
+
+        }
+    }
+
+    void setFirstDepth(double d){
+        depths[0] = d;
+    }
 
 };
 
@@ -127,7 +164,8 @@ public:
     ReprojectionConstraint(const Vector2d &pPix) : p_pix(pPix) {}
 
     template<typename T>
-    bool operator()(const T *const pose, const T *const x_w, const T * const intr, T *residuals) const {   //constant array of type constant T
+    bool operator()(const T *const pose, const T *const x_w, const T *const intr,
+                    T *residuals) const {   //constant array of type constant T
         // remember, pose is B->W
 
         // Create some nicer variables
@@ -146,12 +184,12 @@ public:
 //        UnitQuaternionRotatePoint(qi, mt, ti);
 
         // Autodiff way
-        Matrix<T,3,3> intrinsics_tmp=Matrix<T,3,3>::Identity();
+        Matrix<T, 3, 3> intrinsics_tmp = Matrix<T, 3, 3>::Identity();
         intrinsics_tmp(0, 0) = intr[0];
         intrinsics_tmp(1, 1) = intr[1];
         intrinsics_tmp(0, 2) = intr[2];
         intrinsics_tmp(1, 2) = intr[3];
-        const Matrix<T,3,3> intrinsics=intrinsics_tmp;
+        const Matrix<T, 3, 3> intrinsics = intrinsics_tmp;
 
         const Quaternion<T> q(pose[3], pose[0], pose[1],
                               pose[2]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
@@ -202,20 +240,21 @@ private:
 class UnprojectionConstraint {
 public:
     UnprojectionConstraint(const Vector2d &pPix, const double &depth) :
-                                                                                                    p_pix(pPix),
-                                                                                                    depth(depth) {}
+            p_pix(pPix),
+            depth(depth) {}
 
     template<typename T>
-    bool operator()(const T *const pose, const T *const x_w, const T * const intr, T *residuals) const {   //constant array of type constant T
+    bool operator()(const T *const pose, const T *const x_w, const T *const intr,
+                    T *residuals) const {   //constant array of type constant T
 
 
         // Autodiff way
-        Matrix<T,3,3> intrinsics_tmp=Matrix<T,3,3>::Identity();
+        Matrix<T, 3, 3> intrinsics_tmp = Matrix<T, 3, 3>::Identity();
         intrinsics_tmp(0, 0) = intr[0];
         intrinsics_tmp(1, 1) = intr[1];
         intrinsics_tmp(0, 2) = intr[2];
         intrinsics_tmp(1, 2) = intr[3];
-        const Matrix<T,3,3> intrinsics=intrinsics_tmp;
+        const Matrix<T, 3, 3> intrinsics = intrinsics_tmp;
 
         const Quaternion<T> q(pose[3], pose[0], pose[1],
                               pose[2]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
@@ -253,10 +292,12 @@ private:
 
 int main(int argc, char *argv[]) {
 
+    srand(time(0)); // Set random generator
+
     //-------------------------------------------------- FILL THE CORRESPONDENCES ARRAY
 
     ifstream infile;
-    const string DEFAULT_INTRINSICS = "../../Data/ros_default_intrinsics.txt";
+    const string DEFAULT_INTRINSICS = "../../Data/freiburg3_intrinsics.txt";
     const string FREIBURG1_INTRINSICS = "../../Data/freiburg1_intrinsics.txt";
     const string GROUND_TRUTH = "../../Data/rgbd_dataset_freiburg1_xyz/groundtruth.txt";
 
@@ -277,12 +318,13 @@ int main(int argc, char *argv[]) {
 
     auto intrinsics_inv = intrinsics.inverse();
 
-    infile.open("../../Data/freiburg1_xyz_sample_five_frames.txt");
+    infile.open("../../Data/three_frames_teddy.txt");
     std::vector<Correspondence> correspondences;
     int current_correspondence_id = 1;
     // Ignore file header
     string line;
     getline(infile, line);
+    vector<Sophus::SE3d> gtPoses2;
 
     vector<string> rgb_files, depth_files, gt_files;
     vector<Vector2d> obs_pixs;
@@ -318,6 +360,10 @@ int main(int argc, char *argv[]) {
             depths.clear();
         }
 
+        Quaterniond q(qw, qx, qy,
+                      qz); // TODO: (former) hyper error, the constructor from a vector expects the vector xyzw
+        Sophus::SE3d::Point tr(tx, ty, tz);
+        poses_v.emplace_back(q, tr);
 
         auto iter_found = std::find(uniqueNeededImageNames.begin(), uniqueNeededImageNames.end(), rgb_file_ts);
         // If we've already seen this image
@@ -328,6 +374,7 @@ int main(int argc, char *argv[]) {
                 ui++;
             pose_indices.push_back(ui);
             uniqueNeededImageNames.emplace_back(rgb_file_ts);
+            gtPoses2.emplace_back(q, tr);
         }
 
         // Let's also get the depth
@@ -335,8 +382,8 @@ int main(int argc, char *argv[]) {
         depth_files.push_back(depth_file_ts);
         obs_pixs.emplace_back(corr_x, corr_y);
         gt_files.emplace_back(gt_ts);
-        auto depth_img = imread("../../Data/rgbd_dataset_freiburg1_xyz/depth/" + depth_file_ts + ".png",
-               IMREAD_UNCHANGED);
+        auto depth_img = imread("../../Data/rgbd_dataset_freiburg3_teddy/depth/" + depth_file_ts + ".png",
+                                IMREAD_UNCHANGED);
         int j = floor(corr_x);
         int i = floor(corr_y);
         d = depth_img.at<uint16_t>(i, j) / 5000.0;
@@ -345,19 +392,31 @@ int main(int argc, char *argv[]) {
             break;
         }
         depths.push_back(d);
-        Quaterniond q(qw, qx, qy,
-                      qz); // TODO: (former) hyper error, the constructor from a vector expects the vector xyzw
-        Sophus::SE3d::Point tr(tx, ty, tz);
-        poses_v.emplace_back(q, tr);
-    }
-    infile.close();
 
-////     Print correspondences
+    }
+    // Account for last line in file
+    correspondences.emplace_back(
+            current_correspondence_id,
+            rgb_files,
+            depth_files,
+            gt_files,
+            obs_pixs,
+            poses_v,
+            pose_indices,
+            depths
+    );
+
+    infile.close();
+////
+////////////     Print correspondences
 //    for (auto &correspondence: correspondences) {
 //        for (int l = 0; l < correspondence.getObsPix().size(); l++) {
+//            Vector<double,7> temp_pose(correspondence.getPoses()[l].data());
 //            cout << correspondence.getIndex()
-//                 << " | " << correspondence.getObsPix()[l].transpose() << " | "
-//                 << uniqueNeededImageNames[correspondence.getPoseIndices()[l]];
+//                 << " | " << correspondence.getObsPix()[l].transpose() ;
+////                 " | "
+////                 << uniqueNeededImageNames[correspondence.getPoseIndices()[l]] << " | "
+////                 <<  temp_pose.transpose();
 //            cout << endl;
 //        }
 //    }
@@ -375,68 +434,103 @@ int main(int argc, char *argv[]) {
 //    neededDepthNames.assign(neededDepthNamesSet.begin(), neededDepthNamesSet.end());
 ////    uniqueNeededImageNames.assign(neededImageNamesSet.begin(), neededImageNamesSet.end());
 
+    // Just convert the filenames to doubles (not really needed, as I am already saving the ground truth in Matlab)
     vector<double> uniqueImageTimestamps;
     cout.precision(17);
     for (auto &imageName: uniqueNeededImageNames) {   // Note, uniqueImageTimestamps has the same ordering of uniqueNeededImageNames
         uniqueImageTimestamps.push_back(stod(imageName)); // TODO is this precise enough? 1e+9 + 5 decimal places
     }
+//
+//    // Turn into a synthetics perfect dataset
+//    for (auto & ps : correspondences){
+//        ps.makeSynthetic(intrinsics);
+//    }
+//
 
     //-------------------------------------------------- READ GROUND TRUTH
-
-    infile.open(GROUND_TRUTH);
-    double timestamp;
-    vector<double> timestamps, txs, tys, tzs, qxs, qys, qzs, qws;
-    // ignore file header
-    getline(infile, line);
-    getline(infile, line);
-    getline(infile, line);
-
-    while (infile >> timestamp >> tx >> ty >> tz >> qx >> qy >> qz >> qw) {
-        timestamps.push_back(timestamp);
-        txs.push_back(tx);
-        tys.push_back(ty);
-        tzs.push_back(tz);
-        qxs.push_back(qx);
-        qys.push_back(qy);
-        qzs.push_back(qz);
-        qws.push_back(qw);
-    }
-    infile.close();
-
-    vector<double> interpolatedTimestamps;
-    vector<int> timestampIndices;
-    tie(interpolatedTimestamps, timestampIndices) =
-            nearest_interp_1d(timestamps, timestamps, uniqueImageTimestamps);
+//
+//    infile.open(GROUND_TRUTH);
+//    double timestamp;
+//    vector<double> timestamps, txs, tys, tzs, qxs, qys, qzs, qws;
+//    // ignore file header
+//    getline(infile, line);
+//    getline(infile, line);
+//    getline(infile, line);
+//
+//    while (infile >> timestamp >> tx >> ty >> tz >> qx >> qy >> qz >> qw) {
+//        timestamps.push_back(timestamp);
+//        txs.push_back(tx);
+//        tys.push_back(ty);
+//        tzs.push_back(tz);
+//        qxs.push_back(qx);
+//        qys.push_back(qy);
+//        qzs.push_back(qz);
+//        qws.push_back(qw);
+//    }
+//    infile.close();
+//
+//    vector<double> interpolatedTimestamps;
+//    vector<int> timestampIndices;
+//    tie(interpolatedTimestamps, timestampIndices) =
+//            nearest_interp_1d(timestamps, timestamps, uniqueImageTimestamps);
 
     //-------------------------------------------------- PERTURB GROUND TRUTH DATA FOR INITIALIZATION
 
+//    // First of all, modify arbitrarily some data
+//    correspondences[6].setFirstDepth(1);
+//    correspondences[7].setFirstDepth(1);
+    correspondences[0].setFirstDepth(10);
+    correspondences[0].makeSynthetic(intrinsics);
+//    // And make points synthetic
+    correspondences[6].makeSynthetic(intrinsics);
+    correspondences[7].makeSynthetic(intrinsics);
+//    for(auto & cs : correspondences){
+//        cs.makeSynthetic(intrinsics);
+//    }
+
     vector<Sophus::SE3d> initialPoses;
-    vector<Sophus::SE3d> gtPoses;
+    vector<Sophus::SE3d> gtPoses = gtPoses2;
 
-    double PERTURBATION_RATIO = 2e-1;
-    for (int i = 0; i < interpolatedTimestamps.size(); i++) {
-        auto index = timestampIndices[i];
+    auto base_pose = gtPoses[0].matrix();
 
-        // Unperturbed quantities
+    // Put everything into the first frame of reference
+    for (int i = 0; i < gtPoses.size(); i++){
+        Vector<double, 7>  p(gtPoses[i].data());
+        gtPoses[i]=Sophus::SE3d(base_pose.inverse() * gtPoses[i].matrix());
+
+    }
+    // Update also the poses in the correspondence structure
+    for (auto & cs :  correspondences){
+        cs.putHere(base_pose);
+    }
+
+
+    double PERTURBATION_RATIO = 0e-1;
+//
+    bool perturb = false;
+    for (auto &ps: gtPoses) {
+
         Vector3d translationPert = Vector3d::Random(3) * PERTURBATION_RATIO;
         Vector4d quatPert = Vector4d::Random(4) * PERTURBATION_RATIO; // perturbation
         Vector4d quat_eigen( // perturbed quaternion, correct like this!
-                qxs[index],
-                qys[index],
-                qzs[index],
-                qws[index]
+                ps.unit_quaternion().x(),
+                ps.unit_quaternion().y(),
+                ps.unit_quaternion().z(),
+                ps.unit_quaternion().w()
         );
-        Vector3d translation_eigen(txs[index], tys[index], tzs[index]);
-        Quaterniond quat_gt(quat_eigen);
-        Sophus::SE3d::Point translation_gt = translation_eigen;
-        gtPoses.emplace_back(quat_gt, translation_gt);
+        Vector3d translation_eigen(ps.translation().data());
+//        Quaterniond quat_gt(quat_eigen);
+//        Sophus::SE3d::Point translation_gt = translation_eigen;
+//        gtPoses.emplace_back(quat_gt, translation_gt);
 
         // Perturbation and creation
-        if (i > 0) {  // not perturbing the first guy, it is kept fixed in the optimization
+        if (perturb) {  // not perturbing the first guy, it is kept fixed in the optimization
             translation_eigen += translationPert;
             quat_eigen += quatPert;
             quat_eigen /= quat_eigen.norm();
+
         }
+        perturb = true;
         Sophus::SE3d::Point translation = translation_eigen;
         Quaterniond quat(quat_eigen);
         initialPoses.emplace_back(quat, translation);
@@ -446,12 +540,57 @@ int main(int argc, char *argv[]) {
 
     }
 
+//    for (int i = 0; i < gtPoses.size(); i ++){
+//        Vector<double, 7> p1(gtPoses[i].data()), p2(initialPoses[i].data());
+//        cout << p1.transpose() << endl << p2.transpose() << endl << endl;
+//    }
+
+//    for (int i = 0; i < interpolatedTimestamps.size(); i++) {
+//        auto index = timestampIndices[i];
+//
+//        // Unperturbed quantities
+//        Vector3d translationPert = Vector3d::Random(3) * PERTURBATION_RATIO;
+//        Vector4d quatPert = Vector4d::Random(4) * PERTURBATION_RATIO; // perturbation
+//        Vector4d quat_eigen( // perturbed quaternion, correct like this!
+//                qxs[index],
+//                qys[index],
+//                qzs[index],
+//                qws[index]
+//        );
+//        Vector3d translation_eigen(txs[index], tys[index], tzs[index]);
+//        Quaterniond quat_gt(quat_eigen);
+//        Sophus::SE3d::Point translation_gt = translation_eigen;
+//        gtPoses.emplace_back(quat_gt, translation_gt);
+//
+//        // Perturbation and creation
+//        if (i > 0) {  // not perturbing the first guy, it is kept fixed in the optimization
+//            translation_eigen += translationPert;
+//            quat_eigen += quatPert;
+//            quat_eigen /= quat_eigen.norm();
+//        }
+//        Sophus::SE3d::Point translation = translation_eigen;
+//        Quaterniond quat(quat_eigen);
+//        initialPoses.emplace_back(quat, translation);
+//
+//        // Optional: add even more drift as the sequence progresses
+////        PERTURBATION_RATIO+=PERTURBATION_RATIO/3;
+//
+//    }
+
     // Note, there is now a correspondence between gtPoses and uniqueNeededImageNames
 //    for(int i=0; i < uniqueNeededImageNames.size(); i++){
 //        cout << uniqueNeededImageNames[i] << " " << interpolatedTimestamps[i] << endl;
 //    }
-    // Let's make this explicit
-    tuple<vector<string>, vector<Sophus::SE3d>> gt_info(uniqueNeededImageNames, gtPoses);
+//     Let's make this explicit
+//    tuple<vector<string>, vector<Sophus::SE3d>> gt_info(uniqueNeededImageNames, gtPoses);
+//    for(auto ps : initialPoses){
+//        Vector<double, 7> tmp_ps(ps.data());
+//        cout << tmp_ps.transpose() << endl;
+//    }
+//    for(auto ps : gtPoses2){
+//        Vector<double, 7> tmp_ps(ps.data());
+//        cout << tmp_ps.transpose() << endl;
+//    }
 
     //-------------------------------------------------- INITIALIZE 3D POINTS FROM THE DEPTH FILES
 
@@ -466,7 +605,7 @@ int main(int argc, char *argv[]) {
     // We initialize a 3D point with the depth map of the first frame it is observed in (to reduce drift)
     vector<Vector3d> initialWorldMap;
     vector<Vector3d> gtWorldMap;
-    double MAP_PERTURBATION_RATIO = 3e-1;
+    double MAP_PERTURBATION_RATIO = 0e-1;
     double p_outlier = 0.0; // generate an outlier with p_outlier % probability (but not our job to eliminate outliers)
     double outlier_scaling = 5;   // increase perturbation by a factor of 10 (a lot!)
     // TODO: this works because of the order in which the correspondences are stored in five_frames.txt. Inform other people about this
@@ -478,7 +617,7 @@ int main(int argc, char *argv[]) {
 //        auto ind = distance(neededDepthNames.begin(), itr);
 //        auto depthImage = neededDepthImages[ind];
 
-        // TODO here we rely on the correctness of the ground truth poses to initializer 3D positions in the world frame.
+        // here we rely on the correctness of the ground truth poses to initializer 3D positions in the world frame.
         //      Implement an initialization procedure independent of the ground truth.
 
 //        // Get the depth
@@ -488,22 +627,38 @@ int main(int argc, char *argv[]) {
 //        cout << d << endl;
 
         // Reconstruct the 3D point (from the real ground truth, not the perturbed one)
-        Vector3d point_world;
-        point_world.setOnes();
-        auto point_pix = correspondence.getObsPix()[0];
-        point_world(seq(0, 1)) = point_pix; // homogenous pixel coordinates
-        point_world = correspondence.getDepths()[0] * intrinsics_inv * point_world; // camera coordinates
-        // Put into world coordinates
+        // Let's initialize the 3D point using a mean of all observations
+        Vector3d point_world = Vector3d::Zero();
+        Vector3d point_world_tmp;
+        int count(0);
+
+//        cout << correspondence.getIndex() << endl;
+
+        for (int i = 0; i < correspondence.getObsPix().size(); i++) {
+
+            point_world_tmp.setOnes();
+            auto point_pix = correspondence.getObsPix()[i];
+            point_world_tmp(seq(0, 1)) = point_pix; // homogenous pixel coordinates
+            point_world_tmp = correspondence.getDepths()[i] * intrinsics_inv * point_world_tmp; // camera coordinates
+
+            // Put into world coordinates
 //        auto rgb_filename = correspondence.getRgbFile()[0];
 //        auto it = find(get<0>(gt_info).begin(), get<0>(gt_info).end(), rgb_filename);
 //        auto index = distance(get<0>(gt_info).begin(), it);
 //        auto pose = get<1>(gt_info)[index]; // all of this is terrible and slow, make it better!
-        auto pose = correspondence.getPoses()[0];
+            Sophus::SE3d pose = correspondence.getPoses()[i];
 //        auto pose2 = get<1>(gt_info)[correspondence.getPoseIndices()[0]] // yes, the indices work
 
-        point_world = (pose.matrix() * point_world.homogeneous())(seq(0,
-                                                                      2));    // This is done with gt data. And by plotting this one can tell that the gt rotations are R_{B->W}, probably
+            point_world_tmp = (pose.matrix() * point_world_tmp.homogeneous())(seq(0,
+                                                                                  2));    // This is done with gt data. And by plotting this one can tell that the gt rotations are R_{B->W}, probably
+            point_world = point_world + point_world_tmp;
+//            cout << point_world_tmp.transpose() << endl;
+            count++;
+//            cout << correspondence.getDepths()[i] << endl;
+        }
+        point_world = point_world / count;
 
+//        cout << "Result: " << point_world.transpose() << endl << endl;
         // Perturb, add to map, save ground truth data
         // Outliers
         int p = (rand() % 100) / 100;
@@ -535,26 +690,26 @@ int main(int argc, char *argv[]) {
     problem.AddParameterBlock(intr.data(), 4);
 
     // Remember, we have associated a world map index (correspondence index -1) and a pose index (more complicated) to every correspondence
-//    cout << "Reprojection errors before optimization: " << endl;
+    cout << "Reprojection errors before optimization: " << endl;
     for (auto &correspondence: correspondences) {
         for (int l = 0; l < correspondence.getPoses().size(); l++) {
             problem.AddResidualBlock(
                     ReprojectionConstraint::create_cost_function(correspondence.getObsPix()[l]),
-                    new ceres::HuberLoss(1.0),
+                    new ceres::HuberLoss(5.0),//new ceres::HuberLoss(1.0)
                     poses[correspondence.getPoseIndices()[l]].data(),
                     worldMap[correspondence.getIndex() - 1].data(),
                     intr.data());
 
 //            // Write reprojection error
-//            auto pw = worldMap[correspondence.getIndex() - 1];
-//            auto pos = poses[correspondence.getPoseIndices()[l]];
-//            Vector3d p_c = (pos.matrix().inverse() * pw.homogeneous())(seq(0, 2));
-//            Vector2d p_p = (intrinsics * (p_c / p_c.z()))(seq(0, 1));
-//            cout << (p_p - correspondence.getObsPix()[l]).norm() << endl;
+            auto pw = worldMap[correspondence.getIndex() - 1];
+            auto pos = poses[correspondence.getPoseIndices()[l]];
+            Vector3d p_c = (pos.matrix().inverse() * pw.homogeneous())(seq(0, 2));
+            Vector2d p_p = (intrinsics * (p_c / p_c.z()))(seq(0, 1));
+            cout << (p_p - correspondence.getObsPix()[l]).norm() << endl;
 
             // TODO here we rely on the correctness of the ground truth poses to initializer 3D positions in the world frame.
             //      Implement an initialization procedure independent of the ground truth.
-
+//
             problem.AddResidualBlock(
                     UnprojectionConstraint::create_cost_function( correspondence.getObsPix()[l], correspondence.getDepths()[l]),
                     new ceres::HuberLoss(1.0),
@@ -569,23 +724,23 @@ int main(int argc, char *argv[]) {
     // Compare with ground truth
     vector<double> pose_errors;
     vector<double> map_errors;
-    cout << "Pose errors before optimization: " << endl;
-    for (int i = 0; i < gtPoses.size(); i++) {
-        auto p_err = ((gtPoses[i].inverse() * poses[i]).matrix() - Matrix4d::Identity()).norm();
-        pose_errors.push_back(p_err);
-        cout << p_err << endl;
-    }
-    cout << "Map errors before optimization: " << endl;
-    for (int i = 0; i < gtWorldMap.size(); i++) {
-        auto m_err = (worldMap[i] - gtWorldMap[i]).norm();
-        map_errors.push_back(m_err);
-        cout << m_err << endl;
-    }
+//    cout << "Pose errors before optimization: " << endl;
+//    for (int i = 0; i < gtPoses.size(); i++) {
+//        auto p_err = ((gtPoses[i].inverse() * poses[i]).matrix() - Matrix4d::Identity()).norm();
+//        pose_errors.push_back(p_err);
+//        cout << p_err << endl;
+//    }
+//    cout << "Map errors before optimization: " << endl;
+//    for (int i = 0; i < gtWorldMap.size(); i++) {
+//        auto m_err = (worldMap[i] - gtWorldMap[i]).norm();
+//        map_errors.push_back(m_err);
+//        cout << m_err << endl;
+//    }
 
     // Constrain the problem
     problem.SetParameterBlockConstant(poses[0].data()); // any pose, kept constant, will do
     problem.SetParameterBlockConstant(intr.data()); // any pose, kept constant, will do
-//    problem.SetParameterBlockConstant(worldMap[keep_constant].data()); // any pose, kept constant, will do
+//    problem.SetParameterBlockConstant(worldMap[6].data()); // any pose, kept constant, will do
 
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
@@ -593,24 +748,26 @@ int main(int argc, char *argv[]) {
     options.max_num_iterations = 200;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    std::cout << summary.FullReport() << "\n";
+//    std::cout << summary.FullReport() << "\n";
 
-//    cout << "Reprojection errors after optimization: " << endl;
-//    for (auto &correspondence: correspondences) {
-//        for (int l = 0; l < correspondence.getPoses().size(); l++) {
-//            auto pw = worldMap[correspondence.getIndex() - 1];
-//            auto pos = poses[correspondence.getPoseIndices()[l]];
-//            Vector3d p_c = (pos.matrix().inverse() * pw.homogeneous())(seq(0, 2));
-//            Vector2d p_p = (intrinsics * (p_c / p_c.z()))(seq(0, 1));
-//            cout << (p_p - correspondence.getObsPix()[l]).norm() << endl;
-////            cout << (p_p - correspondence.getObsPix()[l]).norm() << " | " << pw.transpose() << endl;
-//        }
-//    }
+    cout << "Reprojection errors after optimization: " << endl;
+    for (auto &correspondence: correspondences) {
+        for (int l = 0; l < correspondence.getPoses().size(); l++) {
+            auto pw = worldMap[correspondence.getIndex() - 1];
+            auto pos = poses[correspondence.getPoseIndices()[l]];
+            Vector3d p_c = (pos.matrix().inverse() * pw.homogeneous())(seq(0, 2));
+            Vector2d p_p = (intrinsics * (p_c / p_c.z()))(seq(0, 1));
+            cout << (p_p - correspondence.getObsPix()[l]).transpose() << endl;
+//            cout << (p_p - correspondence.getObsPix()[l]).norm() << " | " << pw.transpose() << endl;
+        }
+    }
     cout << "Pose errors after optimization: " << endl;
-    for (int i = 0; i < gtPoses.size(); i++) {
-        auto p_err = ((gtPoses[i].inverse() * poses[i]).matrix() - Matrix4d::Identity()).norm();
-        pose_errors.push_back(p_err);
-        cout << p_err << endl;
+    for (int i = 1; i < gtPoses.size(); i++) {
+        Sophus::SE3d p_err((gtPoses[i].inverse() * poses[i]).matrix());
+        cout << " Angle errors: " << p_err.angleX()/M_PI * 180<< ", " << p_err.angleY()/M_PI * 180 << ", " << p_err.angleZ()/M_PI * 180<< endl;
+        cout << " Ground truth translation: " << gtPoses[i].translation().transpose() << endl;
+        cout << " Translational error: " << p_err.translation().norm() << endl << endl;
+
     }
     cout << "Map errors after optimization: " << endl;
     for (int i = 0; i < gtWorldMap.size(); i++) {
@@ -623,4 +780,10 @@ int main(int argc, char *argv[]) {
 //        cout << intr.data()[i] << endl;
 //    }
 
+//    auto R0 = gtPoses[0].rotationMatrix();
+//    auto R1 = gtPoses[1].rotationMatrix();
+//    auto t0 = gtPoses[0].translation();
+//    auto t1 = gtPoses[1].translation();
+//
+//    cout << R0 << endl << t0.transpose() <<  endl;
 }
