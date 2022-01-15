@@ -261,11 +261,16 @@ public:
         const Vector<T, 3> t(pose[4], pose[5], pose[6]);
         const Vector<T, 3> p_W(x_w[0], x_w[1], x_w[2]);
 
-        const Vector<T, 3> p_W_est = q.matrix() * (T(depth) * intrinsics.inverse() * p_pix.homogeneous()) + t;
+        const Vector<T, 3> p_C  = q.matrix().transpose() * (p_W-t);
+        T d = p_C[2];
 
-        const Vector<T, 3> res = p_W - p_W_est;
-        for (int i = 0; i < 3; i++)
-            residuals[i] = res[i];
+        residuals[0] = depth -d;
+
+//        const Vector<T, 3> p_W_est = q.matrix() * (T(depth) * intrinsics.inverse() * p_pix.homogeneous()) + t;
+
+//        const Vector<T, 3> res = p_W - p_W_est;
+//        for (int i = 0; i < 3; i++)
+//            residuals[i] = res[i];
 
 //        const Vector<T, 3> p_C = q.inverse().matrix() * (p_W - t);
 //        const Vector<T, 2> p_pix_est = (intrinsics.cast<T>() * p_C / p_C.z())(seq(0, 1));
@@ -279,7 +284,7 @@ public:
 
     static ceres::CostFunction *
     create_cost_function(const Vector2d &pPix, const double &depth) {
-        return new ceres::AutoDiffCostFunction<UnprojectionConstraint, 3, 7, 3, 4>(
+        return new ceres::AutoDiffCostFunction<UnprojectionConstraint, 1, 7, 3, 4>(
                 new UnprojectionConstraint(pPix, depth)
         );
     }
@@ -297,9 +302,9 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------- FILL THE CORRESPONDENCES ARRAY
 
     ifstream infile;
-    const string DEFAULT_INTRINSICS = "../../Data/freiburg3_intrinsics.txt";
-    const string FREIBURG1_INTRINSICS = "../../Data/freiburg1_intrinsics.txt";
-    const string GROUND_TRUTH = "../../Data/rgbd_dataset_freiburg1_xyz/groundtruth.txt";
+    const string DEFAULT_INTRINSICS = "../../Data/freiburg1_intrinsics.txt";
+//    const string FREIBURG1_INTRINSICS = "../../Data/freiburg1_intrinsics.txt";
+//    const string GROUND_TRUTH = "../../Data/rgbd_dataset_freiburg1_xyz/groundtruth.txt";
 
 //    cout << "Current working directory: " << filesystem::current_path() << endl;
 
@@ -318,7 +323,7 @@ int main(int argc, char *argv[]) {
 
     auto intrinsics_inv = intrinsics.inverse();
 
-    infile.open("../../Data/three_frames_teddy.txt");
+    infile.open("../../Data/freiburg1_xyz_sample_five_frames_outlier.txt");
     std::vector<Correspondence> correspondences;
     int current_correspondence_id = 1;
     // Ignore file header
@@ -382,7 +387,7 @@ int main(int argc, char *argv[]) {
         depth_files.push_back(depth_file_ts);
         obs_pixs.emplace_back(corr_x, corr_y);
         gt_files.emplace_back(gt_ts);
-        auto depth_img = imread("../../Data/rgbd_dataset_freiburg3_teddy/depth/" + depth_file_ts + ".png",
+        auto depth_img = imread("../../Data/rgbd_dataset_freiburg1_xyz/depth/" + depth_file_ts + ".png",
                                 IMREAD_UNCHANGED);
         int j = floor(corr_x);
         int i = floor(corr_y);
@@ -479,11 +484,11 @@ int main(int argc, char *argv[]) {
 //    // First of all, modify arbitrarily some data
 //    correspondences[6].setFirstDepth(1);
 //    correspondences[7].setFirstDepth(1);
-    correspondences[0].setFirstDepth(10);
-    correspondences[0].makeSynthetic(intrinsics);
+//    correspondences[0].setFirstDepth(10);
+//    correspondences[0].makeSynthetic(intrinsics);
 //    // And make points synthetic
-    correspondences[6].makeSynthetic(intrinsics);
-    correspondences[7].makeSynthetic(intrinsics);
+//    correspondences[6].makeSynthetic(intrinsics);
+//    correspondences[7].makeSynthetic(intrinsics);
 //    for(auto & cs : correspondences){
 //        cs.makeSynthetic(intrinsics);
 //    }
@@ -505,7 +510,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    double PERTURBATION_RATIO = 0e-1;
+    double PERTURBATION_RATIO = 1e-1;
 //
     bool perturb = false;
     for (auto &ps: gtPoses) {
@@ -605,7 +610,7 @@ int main(int argc, char *argv[]) {
     // We initialize a 3D point with the depth map of the first frame it is observed in (to reduce drift)
     vector<Vector3d> initialWorldMap;
     vector<Vector3d> gtWorldMap;
-    double MAP_PERTURBATION_RATIO = 0e-1;
+    double MAP_PERTURBATION_RATIO = 2e-1;
     double p_outlier = 0.0; // generate an outlier with p_outlier % probability (but not our job to eliminate outliers)
     double outlier_scaling = 5;   // increase perturbation by a factor of 10 (a lot!)
     // TODO: this works because of the order in which the correspondences are stored in five_frames.txt. Inform other people about this
@@ -688,6 +693,7 @@ int main(int argc, char *argv[]) {
 
     Vector4d intr(fx, fy, cx, cy);
     problem.AddParameterBlock(intr.data(), 4);
+    double hub_p = 1e-2;
 
     // Remember, we have associated a world map index (correspondence index -1) and a pose index (more complicated) to every correspondence
     cout << "Reprojection errors before optimization: " << endl;
@@ -695,7 +701,7 @@ int main(int argc, char *argv[]) {
         for (int l = 0; l < correspondence.getPoses().size(); l++) {
             problem.AddResidualBlock(
                     ReprojectionConstraint::create_cost_function(correspondence.getObsPix()[l]),
-                    new ceres::HuberLoss(5.0),//new ceres::HuberLoss(1.0)
+                    new ceres::HuberLoss(hub_p),//new ceres::HuberLoss(1.0)
                     poses[correspondence.getPoseIndices()[l]].data(),
                     worldMap[correspondence.getIndex() - 1].data(),
                     intr.data());
@@ -712,7 +718,7 @@ int main(int argc, char *argv[]) {
 //
             problem.AddResidualBlock(
                     UnprojectionConstraint::create_cost_function( correspondence.getObsPix()[l], correspondence.getDepths()[l]),
-                    new ceres::HuberLoss(1.0),
+                    new ceres::HuberLoss(hub_p),
                     poses[correspondence.getPoseIndices()[l]].data(),
                     worldMap[correspondence.getIndex() - 1].data(),
                     intr.data());
@@ -748,7 +754,7 @@ int main(int argc, char *argv[]) {
     options.max_num_iterations = 200;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-//    std::cout << summary.FullReport() << "\n";
+    std::cout << summary.FullReport() << "\n";
 
     cout << "Reprojection errors after optimization: " << endl;
     for (auto &correspondence: correspondences) {
@@ -765,7 +771,7 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < gtPoses.size(); i++) {
         Sophus::SE3d p_err((gtPoses[i].inverse() * poses[i]).matrix());
         cout << " Angle errors: " << p_err.angleX()/M_PI * 180<< ", " << p_err.angleY()/M_PI * 180 << ", " << p_err.angleZ()/M_PI * 180<< endl;
-        cout << " Ground truth translation: " << gtPoses[i].translation().transpose() << endl;
+        cout << " Ground truth translation: " << gtPoses[i].translation().norm() << endl;
         cout << " Translational error: " << p_err.translation().norm() << endl << endl;
 
     }
