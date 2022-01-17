@@ -399,6 +399,10 @@ Map errors after optimization:
         Huber + unprojection alleviates this effect for the map, and makes pose estimates much much better. Try it out on five_frame again.
 
         19) changed the unprojection error to a depth prior, this yields comparable results in teddy (poses) and far better results on five_frames_outlier (poses)
-        20) Huber loss of 1e-2, although taking longer, yields equal (if not 10x better) poses
+        20) Huber loss of 1e-2, although taking longer, yields equal (if not 10x better) poses. It is important that the Huber parameter is low in the reprojection error, but also in the unprojection part
+        21) Slightly increasead uncertainty in unprojection part, by an upweight of 5
+        22) implementing the adaptive HuberLoss thingy slightly increases the number of iterations, and yields equally accurate results -> I won't do it
+        23) take five_frames_outlier. 17-1, 17-4 are bad, and 12 is very bad. Removing the first two and making 12 synthetic makes things much better (meaning that parallel/diverging rays screw things up)
+        Also, 12 is still quite modified, even if synthetic. This is because of small baseline problems. Indeed, setting its depth to a smaller value, the error drastically improves
 
 Obs. Such map errors are large but compatible. The main reason for this is a correspondence slighly off, so that the depth map changes drastically
