@@ -27,7 +27,7 @@ vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
   return points3d;
 }
 
-vector<Vector3d> getGlobalPoints3D(const frame1_geometry &frame) {
+vector<Vector3d> getGlobalPoints3D(const KeyFrame &frame) {
   Vector3d point3d;
   vector<Vector3d> points3d;
 

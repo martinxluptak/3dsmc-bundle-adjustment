@@ -15,12 +15,10 @@ using namespace Eigen;
 int main() {
 
   vector<frame_correspondences> video_correspondences;
-  vector<frame1_geometry> video_geometry;
+  vector<KeyFrame> keyframes;
   Sophus::SE3d current_pose;
   int num_features = 1000;
   int keyframe_increment = 10;
-  int iterations = 5;
-  bool frame2_exists;
 
   // TODO: unify intrinsics data formats
   Matrix3f intr;
@@ -36,102 +34,59 @@ int main() {
   // load video
   cout << "Initialize virtual sensor..." << endl;
 
-  // choose keyframes
   VirtualSensor sensor(keyframe_increment);
+
   if (!sensor.Init(filename)) {
     cout << "Failed to initialize the sensor.\nCheck file path." << endl;
     return -1;
   }
 
-  sensor.ProcessNextFrame(); // load frame 0
+  while (sensor.ProcessNextFrame()) {
 
-  //    for(int i=0; i<iterations; i++)
-  while (true) {
-    vector<KeyPoint> keypoints1, keypoints2;
-    Mat descriptors1, descriptors2, mask_ransac, E, mask_default;
-    vector<vector<DMatch>> knn_matches;
-    frame_correspondences correspondences;
-    frame1_geometry frame;
-    vector<DMatch> lowe_matches, ransac_matches;
-    vector<Point2d> matched_points_lowe1, matched_points_lowe2;
-    vector<Point2d> matched_points_ransac1, matched_points_ransac2;
     // Transfromation from frame 2 to 1
     Sophus::SE3d T_1_2;
     vector<Vector3d> points3d_before, point3d_after;
 
-    const auto &frame1 = sensor.GetGrayscaleFrame();
-    const auto &depth_frame1 = sensor.GetDepthFrame();
-
-    frame2_exists = sensor.ProcessNextFrame();
-    const auto &frame2 = sensor.GetGrayscaleFrame();
-    const auto &depth_frame2 = sensor.GetDepthFrame();
-    //        int num = sensor.GetCurrentFrameCnt();
-    //        cout << num << endl;
-
-    if (frame1.empty()) {
-      cout << "Could not open or find the image.\n" << endl;
-      break;
-    }
-
-    if (!frame2_exists) {
-      cout << endl << "No more keyframe pairs.\n" << endl;
-      break;
-    }
+    KeyFrame current_frame;
+    current_frame.frame_id = sensor.GetCurrentFrameCnt();
+    const auto &rgb = sensor.GetGrayscaleFrame();
+    const auto &depth = sensor.GetDepthFrame();
 
     // detect keypoints and compute descriptors using ORB
-    getORB(frame1, frame2, keypoints1, keypoints2, descriptors1, descriptors2,
+    getORB(rgb, current_frame.keypoints, current_frame.descriptors,
            num_features);
+    current_frame.points3d_local =
+        getLocalPoints3D(current_frame.keypoints, depth, intr);
 
+    if (current_frame.frame_id == 0) {
+      keyframes.push_back(current_frame);
+      continue;
+    }
+    auto &previous_frame = keyframes.back();
+    vector<vector<DMatch>> knn_matches;
     // match keypoints
-    matchKeypoints(descriptors1, descriptors2, knn_matches);
+
+    matchKeypoints(previous_frame.descriptors, current_frame.descriptors,
+                   knn_matches);
 
     // filter matches using Lowe's ratio test
-    lowe_matches = filterMatchesLowe(knn_matches, 0.9);
-    //    cout << "detected Lowe matches: " << lowe_matches.size() << endl;
-    tie(matched_points_lowe1, matched_points_lowe2) =
-        getMatchedPoints(lowe_matches, keypoints1, keypoints2);
+    vector<DMatch> lowe_matches = filterMatchesLowe(knn_matches, 0.7);
 
-    // register 3d points
-    frame.points3d_local = getLocalPoints3D(keypoints2, depth_frame2, intr);
-    vector<Vector3d> frame1_points_3d =
-        getLocalPoints3D(keypoints1, depth_frame1, intr);
     vector<DMatch> inliers;
-    initializeRelativePose(frame1_points_3d, frame.points3d_local, lowe_matches,
-                           inliers, T_1_2);
+    initializeRelativePose(previous_frame.points3d_local,
+                           current_frame.points3d_local, lowe_matches, inliers,
+                           T_1_2);
 
     cout << "inliers found: " << inliers.size() << endl;
-    // register corresponding points
-    //    correspondences.frame1 = matched_points_ransac1;
-    //    correspondences.frame2 = matched_points_ransac2;
-    //    video_correspondences.push_back(correspondences);
 
-    // debugging TODO: fix getLocalPoints3D - stops loading the data
-    // (even though the loop below works)
-    //    for (auto &point2d : correspondences.frame1) {
-    //      cout << "corresp. point: " << point2d << endl;
-    //    }
-
-    // display matches
-    //        mask_default = Mat::ones(1, lowe_matches.size(), CV_64F);
-    //        displayMatches("Matches Lowe", frame1, keypoints1, frame2,
-    //        keypoints2, lowe_matches, mask_default); displayMatches("Matches
-    //        Lowe & RANSAC", frame1, keypoints1, frame2, keypoints2,
-    //        lowe_matches, mask_ransac);
-
-    // get rotation and translation between 2 neighbouring frames
-    frame.pose =
+    current_frame.pose =
         T_1_2.inverse() * current_pose; // global pose for the current frame
-    current_pose = frame.pose;          // global pose for the next frame
+    current_pose = current_frame.pose;  // global pose for the next frame
 
-    frame.points3d_global = getGlobalPoints3D(frame);
-    video_geometry.push_back(frame);
+    //    current_frame.points3d_global = getGlobalPoints3D(current_frame);
+    keyframes.push_back(current_frame);
   }
+  cout << endl << "No more keyframe pairs.\n" << endl;
+
   return 0;
 }
-
-// debugging
-//    cv::Mat flat = mask_ransac.reshape(1,
-//    mask_ransac.total()*mask_ransac.channels()); vector<uchar> mask_ransac_vec
-//    = mask_ransac.isContinuous()? flat : flat.clone(); cout <<
-//    mask_ransac_vec.size() << endl; cout << count(mask_ransac_vec.begin(),
-//    mask_ransac_vec.end(), 1) << endl;
