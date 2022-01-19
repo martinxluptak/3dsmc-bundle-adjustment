@@ -25,6 +25,7 @@ set(HEADER_FILES
         "headers/Detection.h"
         "headers/Matching.h"
         "headers/Map3D.h"
+        "headers/CommonTypes.h"
         )
 
 set(SOURCE_FILES

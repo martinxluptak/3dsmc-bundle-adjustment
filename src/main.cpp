@@ -1,3 +1,4 @@
+#include "CommonTypes.h"
 #include "Detection.h"
 #include "Eigen/Dense"
 #include "Map3D.h"
