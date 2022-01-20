@@ -1,4 +1,4 @@
-function correspondences = find_corr(images, interval, names, path, filename)
+function correspondences = find_corr(images, depths, nn_poses, interval, image_names, depth_names, gt_names, path, filename)
     % Input: list of images, and its length
     N = length(images);
     correspondences = {};   % This will contain the correspondences
@@ -6,6 +6,8 @@ function correspondences = find_corr(images, interval, names, path, filename)
     cond = [];
     kpi = 0;
     fileID = fopen(strcat(path,'\',filename,'.txt'),'w');
+    
+    fprintf(fileID, '%s\n',"# corr_number image_ts depth_ts gt_ts x_pix y_pix tx ty tz qx qy qz qw");
 
     while isempty(cond)
 
@@ -24,9 +26,20 @@ function correspondences = find_corr(images, interval, names, path, filename)
 
             % Start selecting the point in the different frames
             while skip <= N
+                
+                I = images{skip}; D = depths{skip};
 
                 % Some plotting
-                imshow(images{skip})
+                ind = depths{skip} == 0;
+                Is = images{skip};
+                color = [255,0,0];  % the problems are red
+                for c = 1:3
+                    channel = Is(:,:,c);
+                    channel(ind) = color(c);
+                    Is(:,:,c) = channel;
+                end
+                imshow(Is)
+                
                 if kpi > 0
                     hold on;
                     for i=1:(kpi-double(nobs~=0))
@@ -47,19 +60,34 @@ function correspondences = find_corr(images, interval, names, path, filename)
                 end
                 r = ginput(1);
                 if isempty(select) && ~isempty(r)
+                    
                     x=r(1); y=r(2);
+                    
+                    while D(ceil(y),ceil(x)) == 0
+                        disp('No depth here, retry');
+                        r = ginput(1);
+                        while isempty(r)
+                            disp('Please click');
+                            r = ginput(1);
+                        end
+                        x=r(1); y=r(2);
+                    end
+                                        
                     if nobs==0
                         kpi = kpi+1;            
                     end
                     nobs = nobs +1;
                     skip = double(skip);
                     info(nobs,:) = [kpi, skip, x, y];
-                    name = names{skip};
+                    name = image_names{skip};
 
                     % Add line on our txt file
                     fprintf(fileID,'%d ',kpi);
                     fprintf(fileID, '%s ',name);
-                    fprintf(fileID, '%f %f\n',[x,y]);
+                    fprintf(fileID, '%s ',depth_names{skip});
+                    fprintf(fileID, '%s ',gt_names{skip});
+                    fprintf(fileID, '%f %f ',[x,y]);
+                    fprintf(fileID, '%f %f %f %f %f %f %f\n', nn_poses{skip});
 
                 end
                 skip = double(skip + interval);

@@ -54,3 +54,6 @@ target_link_libraries(${PROJECT_NAME}_surf_flann_test ${CONAN_LIBS} ${OpenCV_LIB
 
 add_executable(${PROJECT_NAME}_main src/main.cpp)
 target_link_libraries(${PROJECT_NAME}_main ${CONAN_LIBS} ${OpenCV_LIBS})
+
+add_executable(${PROJECT_NAME}_optimization_sample ${HEADER_FILES} src/OptimizationSample.cpp)
+target_link_libraries(${PROJECT_NAME}_optimization_sample ${CONAN_LIBS} ${OpenCV_LIBS})

@@ -7,3 +7,4 @@ Data/
 lib/build_opencv/
 opencv/
 opencv_contrib/
+Data/rgbd_dataset_freiburg1_xyz/
