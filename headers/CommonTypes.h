@@ -12,7 +12,7 @@ using namespace cv;
 
 struct KeyFrame {
   int frame_id;
-  Sophus::SE3d pose;
+  Sophus::SE3d pose; // relative to frame 1
   vector<KeyPoint> keypoints;
   Mat descriptors;
   // Keypoints with the ground truth depth added
