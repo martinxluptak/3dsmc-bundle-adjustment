@@ -13,7 +13,7 @@ using namespace std;
 using namespace Eigen;
 
 int main() {
-  TrackId track_id = 0;
+  LandmarkId landmark_id = 0;
   vector<frame_correspondences> video_correspondences;
   vector<KeyFrame> keyframes;
   Sophus::SE3d current_pose;
@@ -100,18 +100,19 @@ int main() {
 
         Vector3d point_3d = previous_frame.points3d_local[inlier.queryIdx];
 
-        Track track;
-        track.observations.push_back(obs_1);
-        track.observations.push_back(obs_2);
+        Landmark landmark;
+        landmark.observations.push_back(obs_1);
+        landmark.observations.push_back(obs_2);
 
-        map[track_id] = track;
+        map[landmark_id] = landmark;
 
         // Update keyframe -> map correspondences
-        previous_frame.global_points_map[inlier.trainIdx] = track_id;
-        current_frame.global_points_map[inlier.queryIdx] = track_id;
+        previous_frame.global_points_map[inlier.trainIdx] = landmark_id;
+        current_frame.global_points_map[inlier.queryIdx] = landmark_id;
 
-        track_id++;
+        landmark_id++;
       }
+    } else {
     }
   }
   cout << endl << "No more keyframe pairs.\n" << endl;

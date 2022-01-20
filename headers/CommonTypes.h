@@ -10,7 +10,7 @@
 using namespace std;
 using namespace cv;
 
-typedef int TrackId;
+typedef int LandmarkId;
 
 struct KeyFrame {
   int frame_id;
@@ -24,7 +24,7 @@ struct KeyFrame {
   // if it exists
   // Note: This data is redundant with the map, but makes it faster to index
   // and implement
-  unordered_map<int, TrackId> global_points_map;
+  unordered_map<int, LandmarkId> global_points_map;
 
   // relative to the current frame
   //  vector<Vector3d> points3d_global; // relative to frame 1
@@ -34,11 +34,11 @@ typedef pair<int, Point2d> Observation;
 
 typedef vector<Observation> Observations;
 
-struct Track {
+struct Landmark {
   Observations observations;
   Vector3d point;
 };
 
-typedef unordered_map<TrackId, Track> Map3D;
+typedef unordered_map<LandmarkId, Landmark> Map3D;
 
 #endif // COMMON_TYPES_H
