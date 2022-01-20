@@ -26,7 +26,7 @@ void addLandmarkObservation(KeyFrame &old_frame, KeyFrame &new_frame,
 
 vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &correspondences,
                                   const Mat &depth_frame1,
-                                  const Matrix3f &intrinsics);
+                                  const Vector4d &intrinsics);
 
 Sophus::SE3d getExtrinsics(const Mat &E, const vector<Point2d> &matched_points1,
                            const vector<Point2d> &matched_points2,

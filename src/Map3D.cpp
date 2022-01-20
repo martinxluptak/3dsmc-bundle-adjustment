@@ -65,7 +65,7 @@ void addLandmarkObservation(KeyFrame &old_frame, KeyFrame &new_frame,
 
 vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
                                   const Mat &depth_frame1,
-                                  const Matrix3f &intrinsics) {
+                                  const Vector4d &intrinsics) {
   Vector3d point3d;
   vector<Vector3d> points3d;
 
@@ -77,8 +77,8 @@ vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
     int v = static_cast<int>(point2d.pt.y);
 
     float z = depth_frame1.at<float>(v, u);
-    float x = z * (u - intrinsics(0, 2)) / intrinsics(0, 0);
-    float y = z * (v - intrinsics(1, 2)) / intrinsics(1, 1);
+    float x = z * (u - intrinsics(0, 2)) / intrinsics[0];
+    float y = z * (v - intrinsics(1, 2)) / intrinsics[1];
 
     point3d << x, y, z;
     points3d.push_back(point3d);
