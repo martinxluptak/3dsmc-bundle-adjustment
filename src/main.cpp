@@ -13,7 +13,7 @@ using namespace std;
 using namespace Eigen;
 
 int main() {
-
+  TrackId track_id = 0;
   vector<frame_correspondences> video_correspondences;
   vector<KeyFrame> keyframes;
   Sophus::SE3d current_pose;
@@ -28,7 +28,8 @@ int main() {
                               255.3, 0.0, 0.0,   1.0};
   Mat intrinsics(3, 3, CV_64FC1, intrinsics_data);
 
-  main: string filename = string(".../rgbd_dataset_freiburg1_xyz/");  // SET TO
+  string filename = string(
+      "../../Data/rgbd_dataset_freiburg1_xyz/"); // SET TO
                                                  // <your_path>/rgbd_dataset_freiburg1_xyz/
 
   // load video
@@ -45,6 +46,7 @@ int main() {
 
     // Transfromation from frame 2 to 1
     Sophus::SE3d T_1_2;
+    vector<Vector3d> points3d_before, point3d_after;
 
     KeyFrame current_frame;
     current_frame.frame_id = sensor.GetCurrentFrameCnt();
@@ -80,10 +82,37 @@ int main() {
 
     current_frame.pose =
         T_1_2.inverse() * current_pose; // global pose for the current frame
-    current_pose = current_frame.pose;
+    current_pose = current_frame.pose;  // global pose for the next frame
 
     //    current_frame.points3d_global = getGlobalPoints3D(current_frame);
     keyframes.push_back(current_frame);
+
+    // Map initialization with the first two keyframes
+    if (keyframes.size() == 2) {
+      // Add inliers to map
+      for (auto &inlier : inliers) {
+        // Update map
+        Observation obs_1, obs_2;
+        obs_1.first = previous_frame.frame_id;
+        obs_1.second = previous_frame.keypoints[inlier.queryIdx].pt;
+        obs_2.first = current_frame.frame_id;
+        obs_2.second = current_frame.keypoints[inlier.trainIdx].pt;
+
+        Vector3d point_3d = previous_frame.points3d_local[inlier.queryIdx];
+
+        Track track;
+        track.observations.push_back(obs_1);
+        track.observations.push_back(obs_2);
+
+        map[track_id] = track;
+
+        // Update keyframe -> map correspondences
+        previous_frame.global_points_map[inlier.trainIdx] = track_id;
+        current_frame.global_points_map[inlier.queryIdx] = track_id;
+
+        track_id++;
+      }
+    }
   }
   cout << endl << "No more keyframe pairs.\n" << endl;
 
