@@ -33,6 +33,9 @@ typedef pair<int, Point2d> Observation;
 
 typedef vector<Observation> Observations;
 
-typedef unordered_map<Vector3d, Observations> Map;
+typedef unordered_map<
+    Vector3d, Observations,
+    Eigen::aligned_allocator<pair<Eigen::Vector3d, Observations>>>
+    Map3D;
 
 #endif // COMMON_TYPES_H

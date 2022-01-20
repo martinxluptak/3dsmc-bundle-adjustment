@@ -17,6 +17,7 @@ int main() {
   vector<frame_correspondences> video_correspondences;
   vector<KeyFrame> keyframes;
   Sophus::SE3d current_pose;
+  Map3D map;
   int num_features = 1000;
   int keyframe_increment = 10;
 
