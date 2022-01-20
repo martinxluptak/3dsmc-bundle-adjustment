@@ -20,7 +20,7 @@ find_package(OpenCV REQUIRED)
 include_directories(headers ${OpenCV_INCLUDE_DIRS}) # uncomment if OpenCV includes are causing errors (missing from PATH).
 
 set(HEADER_FILES
-        "headers/Eigen.h"
+        "headers/Eigen.h" # we don't need it, right?
         "headers/VirtualSensor.h"
         "headers/Detection.h"
         "headers/Matching.h"
