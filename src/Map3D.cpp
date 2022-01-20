@@ -4,6 +4,65 @@
 
 #include "Map3D.h"
 
+void updateLandmarks(KeyFrame &old_frame, KeyFrame &new_frame,
+                     const vector<DMatch> &matches, Map3D &map,
+                     LandmarkId &landmark_id) {
+  for (auto &match : matches) {
+    // Add new landmark to the map in case:
+    // 1. Initializing the map with the first two keyframes
+    // 2. Landmark wasn't observed in the previous frame
+    if (old_frame.frame_id == 0 ||
+        !old_frame.global_points_map.count(match.trainIdx)) {
+      addNewLandmark(old_frame, new_frame, match, map, landmark_id);
+      landmark_id++;
+    } else if (old_frame.global_points_map.count(match.trainIdx)) {
+      // Else if it was observed in the previous frame, update the landmark
+      // observations to include the new frame
+      addLandmarkObservation(old_frame, new_frame, match, map);
+    }
+  }
+}
+
+void addNewLandmark(KeyFrame &kf_1, KeyFrame &kf_2, const DMatch &match,
+                    Map3D &map, const LandmarkId &landmark_id) {
+  // Update map
+  Observation obs_1, obs_2;
+  obs_1.first = kf_1.frame_id;
+  obs_1.second = kf_1.keypoints[match.queryIdx].pt;
+  obs_2.first = kf_2.frame_id;
+  obs_2.second = kf_2.keypoints[match.trainIdx].pt;
+
+  Landmark landmark;
+  // Transform local point to world coordinates
+  landmark.point = kf_1.T_w_c * kf_1.points3d_local[match.queryIdx];
+
+  landmark.observations.push_back(obs_1);
+  landmark.observations.push_back(obs_2);
+
+  map[landmark_id] = landmark;
+
+  // Update keyframe -> map correspondences
+  kf_1.global_points_map[match.trainIdx] = landmark_id;
+  kf_2.global_points_map[match.queryIdx] = landmark_id;
+}
+
+///
+/// \brief updateLandmarkObservation Add a new frame as an observation of an
+/// existing landmark
+/// \param old_frame the frame that has already observed the landmark
+/// \param new_frame The frame that we want to add as observation
+///
+void addLandmarkObservation(KeyFrame &old_frame, KeyFrame &new_frame,
+                            const DMatch &match, Map3D &map) {
+  Observation obs;
+  obs.first = new_frame.frame_id;
+  obs.second = new_frame.keypoints[match.trainIdx].pt;
+  LandmarkId &landmark_id = old_frame.global_points_map[match.trainIdx];
+  map[landmark_id].observations.push_back(obs);
+
+  new_frame.global_points_map[match.queryIdx] = landmark_id;
+}
+
 vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
                                   const Mat &depth_frame1,
                                   const Matrix3f &intrinsics) {
@@ -22,17 +81,6 @@ vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
     float y = z * (v - intrinsics(1, 2)) / intrinsics(1, 1);
 
     point3d << x, y, z;
-    points3d.push_back(point3d);
-  }
-  return points3d;
-}
-
-vector<Vector3d> getGlobalPoints3D(const KeyFrame &frame) {
-  Vector3d point3d;
-  vector<Vector3d> points3d;
-
-  for (auto &point3d_local : frame.points3d_local) {
-    point3d = frame.pose * point3d_local;
     points3d.push_back(point3d);
   }
   return points3d;

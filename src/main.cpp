@@ -14,7 +14,6 @@ using namespace Eigen;
 
 int main() {
   LandmarkId landmark_id = 0;
-  vector<frame_correspondences> video_correspondences;
   vector<KeyFrame> keyframes;
   Sophus::SE3d current_pose;
   Map3D map;
@@ -80,40 +79,13 @@ int main() {
 
     cout << "inliers found: " << inliers.size() << endl;
 
-    current_frame.pose =
-        T_1_2.inverse() * current_pose; // global pose for the current frame
-    current_pose = current_frame.pose;  // global pose for the next frame
+    current_frame.T_w_c =
+        current_pose * T_1_2;           // global pose for the current frame
+    current_pose = current_frame.T_w_c; // global pose for the next frame
 
-    //    current_frame.points3d_global = getGlobalPoints3D(current_frame);
+    updateLandmarks(previous_frame, current_frame, inliers, map, landmark_id);
+
     keyframes.push_back(current_frame);
-
-    // Map initialization with the first two keyframes
-    if (keyframes.size() == 2) {
-      // Add inliers to map
-      for (auto &inlier : inliers) {
-        // Update map
-        Observation obs_1, obs_2;
-        obs_1.first = previous_frame.frame_id;
-        obs_1.second = previous_frame.keypoints[inlier.queryIdx].pt;
-        obs_2.first = current_frame.frame_id;
-        obs_2.second = current_frame.keypoints[inlier.trainIdx].pt;
-
-        Vector3d point_3d = previous_frame.points3d_local[inlier.queryIdx];
-
-        Landmark landmark;
-        landmark.observations.push_back(obs_1);
-        landmark.observations.push_back(obs_2);
-
-        map[landmark_id] = landmark;
-
-        // Update keyframe -> map correspondences
-        previous_frame.global_points_map[inlier.trainIdx] = landmark_id;
-        current_frame.global_points_map[inlier.queryIdx] = landmark_id;
-
-        landmark_id++;
-      }
-    } else {
-    }
   }
   cout << endl << "No more keyframe pairs.\n" << endl;
 

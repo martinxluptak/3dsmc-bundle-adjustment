@@ -14,11 +14,19 @@ using namespace std;
 using namespace cv;
 using namespace Eigen;
 
+void updateLandmarks(KeyFrame &old_frame, KeyFrame &new_frame,
+                     const vector<DMatch> &matches, Map3D &map,
+                     LandmarkId &landmark_id);
+
+void addNewLandmark(KeyFrame &kf_1, KeyFrame &kf_2, const DMatch &match,
+                    Map3D &map, const LandmarkId &landmark_id);
+
+void addLandmarkObservation(KeyFrame &old_frame, KeyFrame &new_frame,
+                            const DMatch &match, Map3D &map);
+
 vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &correspondences,
                                   const Mat &depth_frame1,
                                   const Matrix3f &intrinsics);
-
-vector<Vector3d> getGlobalPoints3D(const KeyFrame &frame);
 
 Sophus::SE3d getExtrinsics(const Mat &E, const vector<Point2d> &matched_points1,
                            const vector<Point2d> &matched_points2,

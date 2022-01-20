@@ -14,7 +14,7 @@ typedef int LandmarkId;
 
 struct KeyFrame {
   int frame_id;
-  Sophus::SE3d pose; // relative to frame 1
+  Sophus::SE3d T_w_c; // relative to frame 1
   vector<KeyPoint> keypoints;
   Mat descriptors;
   // Keypoints with the ground truth depth added
