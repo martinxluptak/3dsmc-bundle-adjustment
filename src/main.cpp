@@ -21,79 +21,84 @@ int main() {
     auto cfg = BundleAdjustmentConfig();
 
     /////////////////////////////////////
-   //  FEATURE EXTRACTION + MATCHING  //
-  /////////////////////////////////////
-  LandmarkId landmark_id = 0;
-  vector<KeyFrame> keyframes;
-  Sophus::SE3d current_pose;
-  Map3D map;
+    //  FEATURE EXTRACTION + MATCHING  //
+    /////////////////////////////////////
+    LandmarkId landmark_id = 0;
+    vector<KeyFrame> keyframes;
+    Sophus::SE3d current_pose;
+    Map3D map;
 
-  /*
-   * Read intrinsics_initial from file.
-   * Always read from file as we might load different file
-   * for a different data set.
-   * format: fx, fy, cx, cy
-   */
-  Vector4d intrinsics_initial = read_camera_intrinsics_from_file(cfg.CAMERA_DEFAULT_INTRINSICS_PATH);
+    /*
+     * Read intrinsics_initial from file.
+     * Always read from file as we might load different file
+     * for a different data set.
+     * format: fx, fy, cx, cy
+     */
+    Vector4d intrinsics_initial = read_camera_intrinsics_from_file(cfg.CAMERA_DEFAULT_INTRINSICS_PATH);
+    auto intrinsics_optimized(intrinsics_initial);  // to be later optimized
 
-  // load video
-  cout << "Initialize virtual sensor..." << endl;
+    // load video
+    cout << "Initialize virtual sensor..." << endl;
 
-  VirtualSensor sensor(cfg.KEYFRAME_INCREMENT);
+    VirtualSensor sensor(cfg.KEYFRAME_INCREMENT);
 
-  if (!sensor.Init(cfg.DATASET_FILEPATH)) {
-    cout << "Failed to initialize the sensor.\nCheck file path." << endl;
-    return -1;
-  }
-
-  while (sensor.ProcessNextFrame()) {
-
-    // Transfromation from frame 2 to 1
-    Sophus::SE3d T_1_2;
-    vector<Vector3d> points3d_before, point3d_after;
-
-    KeyFrame current_frame;
-    current_frame.frame_id = sensor.GetCurrentFrameCnt();
-    const auto &rgb = sensor.GetGrayscaleFrame();
-    const auto &depth = sensor.GetDepthFrame();
-
-    // detect keypoints and compute descriptors using ORB
-    getORB(rgb, current_frame.keypoints, current_frame.descriptors,
-           cfg.NUM_FEATURES);
-    current_frame.points3d_local =
-        getLocalPoints3D(current_frame.keypoints, depth, intrinsics_initial);
-
-    if (current_frame.frame_id == 0) {
-      keyframes.push_back(current_frame);
-      continue;
+    if (!sensor.Init(cfg.DATASET_FILEPATH)) {
+        cout << "Failed to initialize the sensor.\nCheck file path." << endl;
+        return -1;
     }
-    auto &previous_frame = keyframes.back();
-    vector<vector<DMatch>> knn_matches;
-    // match keypoints
 
-    matchKeypoints(previous_frame.descriptors, current_frame.descriptors,
-                   knn_matches);
+    while (sensor.ProcessNextFrame()) {
 
-    // filter matches using Lowe's ratio test
-    vector<DMatch> lowe_matches = filterMatchesLowe(knn_matches, 0.7);
+        // Transfromation from frame 2 to 1
+        Sophus::SE3d T_1_2;
+        vector<Vector3d> points3d_before, point3d_after;
 
-    vector<DMatch> inliers;
-    initializeRelativePose(previous_frame.points3d_local,
-                           current_frame.points3d_local, lowe_matches, inliers,
-                           T_1_2);
+        KeyFrame current_frame;
+        current_frame.frame_id = sensor.GetCurrentFrameCnt();
+        const auto &rgb = sensor.GetGrayscaleFrame();
+        const auto &depth = sensor.GetDepthFrame();
 
-    cout << "inliers found: " << inliers.size() << endl;
+        // detect keypoints and compute descriptors using ORB
+        getORB(rgb, current_frame.keypoints, current_frame.descriptors,
+               cfg.NUM_FEATURES);
+        current_frame.points3d_local =
+                getLocalPoints3D(current_frame.keypoints, depth, intrinsics_initial);
 
-    current_frame.T_w_c =
-        current_pose * T_1_2;           // global pose for the current frame
-    current_pose = current_frame.T_w_c; // global pose for the next frame
+        if (current_frame.frame_id == 0) {
+            keyframes.push_back(current_frame);
+            continue;
+        }
+        auto &previous_frame = keyframes.back();
+        vector<vector<DMatch>> knn_matches;
+        // match keypoints
 
-    updateLandmarks(previous_frame, current_frame, inliers, map, landmark_id);
+        matchKeypoints(previous_frame.descriptors, current_frame.descriptors,
+                       knn_matches);
 
-    keyframes.push_back(current_frame);
-  }
-  cout << endl << "No more keyframe pairs.\n" << endl;
+        // filter matches using Lowe's ratio test
+        vector<DMatch> lowe_matches = filterMatchesLowe(knn_matches, 0.7);
 
-  runOptimization(cfg, map, keyframes, intrinsics_initial);
+        vector<DMatch> inliers;
+        initializeRelativePose(previous_frame.points3d_local,
+                               current_frame.points3d_local, lowe_matches, inliers,
+                               T_1_2);
+
+        cout << "inliers found: " << inliers.size() << endl;
+
+        current_frame.T_w_c =
+                current_pose * T_1_2;           // global pose for the current frame
+        current_pose = current_frame.T_w_c; // global pose for the next frame
+
+        updateLandmarks(previous_frame, current_frame, inliers, map, landmark_id);
+
+        keyframes.push_back(current_frame);
+    }
+    cout << endl << "No more keyframe pairs.\n" << endl;
+
+    ///////////////////////////////
+    //  OPTIMIZATION WITH CERES  //
+    ///////////////////////////////
+
+    runOptimization(cfg, map, keyframes, intrinsics_initial, intrinsics_optimized);
     return 0;
 }
