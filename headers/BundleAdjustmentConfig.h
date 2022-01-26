@@ -39,25 +39,30 @@ public:
 
 class ceresGlobalProblem{
 public:
-    ceresGlobalProblem(const double hubPRepr, const double weightIntrinsics, const double weightUnpr,
-                       const double hubPUnpr, const ceres::Solver::Options &options,
-                       ceres::LossFunctionWrapper *lossFunctionRepr, ceres::LossFunctionWrapper *lossFunctionUnpr,
-                       ceres::LocalParameterization *localParametrizationSe3)
-            : HUB_P_REPR(hubPRepr), WEIGHT_INTRINSICS(weightIntrinsics), WEIGHT_UNPR(weightUnpr), HUB_P_UNPR(hubPUnpr),
-              options(options), loss_function_repr(lossFunctionRepr), loss_function_unpr(lossFunctionUnpr),
-              local_parametrization_se3(localParametrizationSe3) {}
 
-    const double HUB_P_REPR; // Huber loss parameter for reprojection constraints
-    const double WEIGHT_INTRINSICS;
-    const double WEIGHT_UNPR; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
-    const double HUB_P_UNPR; // Huber loss parameter for depth prior (i.e. unprojection constraints)
+    const double HUB_P_REPR = 1e-2; // Huber loss parameter for reprojection constraints
+    const double WEIGHT_INTRINSICS = 1e-4;
+    const double WEIGHT_UNPR = 5; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
+    const double HUB_P_UNPR = 1e-2; // Huber loss parameter for depth prior (i.e. unprojection constraints)
 
     ceres::Solver::Options options;
 
-    ceres::LossFunctionWrapper *loss_function_repr;
-    ceres::LossFunctionWrapper *loss_function_unpr;
+    ceres::LossFunctionWrapper *loss_function_repr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_REPR),
+                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
+    ceres::LossFunctionWrapper *loss_function_unpr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_UNPR),
+                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
 
-    ceres::LocalParameterization *local_parametrization_se3;
+    ceres::LocalParameterization *local_parametrization_se3 = new Sophus::LocalParameterizationSE3;
+
+    ceresGlobalProblem() {
+        initialize_options();
+    }
+
+    void initialize_options(){
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+        options.minimizer_progress_to_stdout = true;
+        options.max_num_iterations = 200;
+    }
 
 };
 
