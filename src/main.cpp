@@ -60,7 +60,7 @@ int main() {
         const auto &depth = sensor.GetDepthFrame();
 
         // detect keypoints and compute descriptors using ORB
-        getORB(rgb, current_frame.keypoints, current_frame.descriptors,
+        getORB(rgb, depth, current_frame.keypoints, current_frame.descriptors,
                cfg.NUM_FEATURES);
         current_frame.points3d_local =
                 getLocalPoints3D(current_frame.keypoints, depth, intrinsics_initial);
@@ -73,6 +73,7 @@ int main() {
         vector<vector<DMatch>> knn_matches;
         // match keypoints
 
+        // uncomment relevant lines in the function, depending if ORB/SIFT/SURF
         matchKeypoints(previous_frame.descriptors, current_frame.descriptors,
                        knn_matches);
 
