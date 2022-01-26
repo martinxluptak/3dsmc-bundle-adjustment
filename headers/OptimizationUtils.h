@@ -39,12 +39,7 @@ void write_keyframe_poses_to_file(const string &file_path,
  * @param reprojection_constraints_result returns # of reprojection constraints
  * @param unprojection_constraints_result returns # of unprojection constraints
  */
-void countConstraints(
-        const BundleAdjustmentConfig &cfg,
-        const Map3D &map,
-        const vector<KeyFrame> &keyframes,
-        int &reprojection_constraints_result,
-        int &unprojection_constraints_result);
+int countConstraints(const Map3D &map, const vector<KeyFrame> &keyframes, int kf_i, int kf_f);
 
 /**
  *

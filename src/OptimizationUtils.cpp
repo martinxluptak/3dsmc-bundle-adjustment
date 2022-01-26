@@ -171,39 +171,35 @@ int findLocalPointIndex(const KeyFrame &keyframe, const int landmarkId) {
     return local_index;
 }
 
-void countConstraints(const BundleAdjustmentConfig &cfg, const Map3D &map, const vector<KeyFrame> &keyframes,
-                      int &reprojection_constraints_result, int &unprojection_constraints_result) {
-    for (auto &it: map) {
-        auto landmark = it.second;
-        auto landmarkId = it.first;
+int countConstraints(const Map3D &map, const vector<KeyFrame> &keyframes, int kf_i, int kf_f) {
 
-        /*
-         * Iterate over each observation of the same landmark.
-         */
-        for (auto &observation: landmark.observations) {
-            auto keyframe_index = observation.first / cfg.KEYFRAME_INCREMENT;
-            auto associated_keyframe = keyframes[keyframe_index];
-            auto observed_pix = observation.second;
-            Vector2d observed_pix_vec2d(observed_pix.x, observed_pix.y); // Conversion from Point2d to Vector2d
+    int admissible_obs = 0;
 
-            reprojection_constraints_result++; // increment reprojection constraints counter.
+    // Poses, map points (only the relevant ones)
+    for (int kf_n = kf_i; kf_n <= kf_f; kf_n++) {
 
-            int local_index = findLocalPointIndex(associated_keyframe, landmarkId);
-            if (local_index == -1) {
-                cout << "Global point index not matching to any observation in current keyframe" << endl;
+        // Modify the poses, make them relative to the first frame, add them to the problem
+        auto &curr_kf = keyframes[kf_n];
+
+        // Run over all observations of this keyframe
+        for (auto index_pair: curr_kf.global_points_map) {
+            int localId = index_pair.first;
+
+            auto depth = curr_kf.points3d_local[localId](2);
+
+            // Discard this observation if it has negative depth. todo: to be removed
+            if (depth <= 1e-15) {
+//                cout << "Negative and thus unadmissible depth" << endl;
                 continue;
             }
 
-            auto local_depth = associated_keyframe.points3d_local[local_index][2];
+            admissible_obs++;
 
-            if (local_depth < 1e-15) {
-                cout << "Local depth " << local_depth << " is < 0" << endl;
-                continue;
-            }
-
-            unprojection_constraints_result++; // increment unprojection constraints counter.
         }
     }
+
+    return admissible_obs;
+
 }
 
 bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vector<KeyFrame> &keyframes, Map3D &map,
@@ -233,6 +229,7 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
             nullptr, // squared loss
             intrinsics_optimized.data()
     );
+    int admissible_obs = countConstraints(map, keyframes, kf_i, kf_f);
     // Poses, map points (only the relevant ones)
     for (int kf_n = kf_i; kf_n <= kf_f; kf_n++) {
 
@@ -271,7 +268,7 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
 
             // Reprojection
             problem.AddResidualBlock(
-                    ReprojectionConstraint::create_cost_function(pix_coords, 1.0),
+                    ReprojectionConstraint::create_cost_function(pix_coords, 1.0/admissible_obs),
                     loss_function_repr,
                     pose.data(), // (global) camera pose during observation
                     map_point.point.data(), // 3D point
@@ -281,7 +278,7 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
             // Unprojection
             problem.AddResidualBlock(
                     DepthPrior::create_cost_function(pix_coords,
-                                                     depth, globalProblem.WEIGHT_UNPR),
+                                                     depth, globalProblem.WEIGHT_UNPR/admissible_obs),
                     loss_function_unpr,
                     pose.data(),
                     map_point.point.data(),
@@ -317,7 +314,7 @@ void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFr
     // Window specific stuff
     int N_kf = int(keyframes.size());
     if (globalProblem.window_size==-1) windowOptimize(globalProblem, 0, N_kf-1, keyframes, map, intrinsics_initial, intrinsics_optimized);
-    for (int kf_i = 0; kf_i < N_kf; kf_i+=globalProblem.window_size) {
-        windowOptimize(globalProblem, kf_i, kf_i + 2, keyframes, map, intrinsics_initial, intrinsics_optimized);
-    }
+    if (globalProblem.window_size > N_kf) cout << "This window is too large." << endl;
+    else for (int kf_i = 0; kf_i < N_kf; kf_i+=globalProblem.window_size) windowOptimize(globalProblem, kf_i, kf_i + 2, keyframes, map, intrinsics_initial, intrinsics_optimized);
+
 }
