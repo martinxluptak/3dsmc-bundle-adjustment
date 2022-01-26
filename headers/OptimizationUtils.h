@@ -57,8 +57,6 @@ void countConstraints(
  */
 int findLocalPointIndex(const KeyFrame &keyframe, const int landmarkId);
 
-ceresGlobalProblem initialiseGlobalProblem();
-
 bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vector<KeyFrame> & keyframes, Map3D & map, const Vector4d &intrinsics_initial, Vector4d & intrinsics_optimized);
 
 void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFrame> &keyframes,

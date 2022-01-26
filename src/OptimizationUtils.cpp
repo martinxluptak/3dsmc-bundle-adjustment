@@ -206,29 +206,6 @@ void countConstraints(const BundleAdjustmentConfig &cfg, const Map3D &map, const
     }
 }
 
-ceresGlobalProblem initialiseGlobalProblem(){
-    const double HUB_P_REPR = 1e-2; // Huber loss parameter for reprojection constraints
-    const double WEIGHT_INTRINSICS = 1e-4;
-    const double WEIGHT_UNPR = 5; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
-    const double HUB_P_UNPR = 1e-2; // Huber loss parameter for depth prior (i.e. unprojection constraints)
-
-    ceres::Solver::Options options;
-    options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-    options.minimizer_progress_to_stdout = true;
-    options.max_num_iterations = 200;
-
-    auto *loss_function_repr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_REPR),
-                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
-    auto *loss_function_unpr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_UNPR),
-                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
-
-    ceres::LocalParameterization *local_parametrization_se3 = new Sophus::LocalParameterizationSE3;
-
-    ceresGlobalProblem globalProblem = ceresGlobalProblem(HUB_P_REPR,WEIGHT_INTRINSICS,WEIGHT_UNPR, HUB_P_UNPR, options, loss_function_repr, loss_function_unpr, local_parametrization_se3);
-
-    return globalProblem;
-}
-
 bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vector<KeyFrame> & keyframes, Map3D & map, const Vector4d &intrinsics_initial, Vector4d & intrinsics_optimized){
 
     ceres::Problem problem; // Optimization variables, poses, map and intrinsics_initial
@@ -325,9 +302,11 @@ bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vect
 void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFrame> &keyframes,
                      const Vector4d &intrinsics_initial, Vector4d &intrinsics_optimized) {
 
-    ceresGlobalProblem globalProblem=initialiseGlobalProblem();
+    // Global *optimization* options
+    ceresGlobalProblem globalProblem= ceresGlobalProblem();
+
     // Window specific stuff
-//    for (int kf_i = 0; kf_i <1; kf_i++){
-//        windowOptimize(globalProblem,kf_i,kf_i+2,keyframes,map,intrinsics_initial, intrinsics_optimized);
-//    }
+    for (int kf_i = 0; kf_i <2; kf_i++){
+        windowOptimize(globalProblem,kf_i,kf_i+2,keyframes,map,intrinsics_initial, intrinsics_optimized);
+    }
 }
