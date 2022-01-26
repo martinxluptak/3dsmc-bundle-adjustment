@@ -197,7 +197,7 @@ void countConstraints(const BundleAdjustmentConfig &cfg, const Map3D &map, const
             auto local_depth = associated_keyframe.points3d_local[local_index][2];
 
             if (local_depth < 1e-15) {
-                cout << "Local depth "<< local_depth << " is < 0" << endl;
+                cout << "Local depth " << local_depth << " is < 0" << endl;
                 continue;
             }
 
@@ -206,10 +206,19 @@ void countConstraints(const BundleAdjustmentConfig &cfg, const Map3D &map, const
     }
 }
 
-bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vector<KeyFrame> & keyframes, Map3D & map, const Vector4d &intrinsics_initial, Vector4d & intrinsics_optimized){
+bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vector<KeyFrame> &keyframes, Map3D &map,
+                    const Vector4d &intrinsics_initial, Vector4d &intrinsics_optimized) {
 
     ceres::Problem problem; // Optimization variables, poses, map and intrinsics_initial
     ceres::Solver::Summary summary;
+
+    // Some optimization related stuff which is owned by the problem, as ceres says (so, can't be put into config)
+    ceres::LocalParameterization *local_parametrization_se3 = new Sophus::LocalParameterizationSE3;
+    auto *loss_function_repr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(globalProblem.HUB_P_REPR),
+                                                              ceres::TAKE_OWNERSHIP);
+    auto *loss_function_unpr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(globalProblem.HUB_P_UNPR),
+                                                              ceres::TAKE_OWNERSHIP);
+
 
     set<int> already_observed_pts;  // we will visit a 3D map point more than once below. We need this not to apply T1->i twice
 
@@ -234,7 +243,7 @@ bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vect
         auto &pose = curr_kf.T_w_c;
         problem.AddParameterBlock(pose.data(),
                                   Sophus::SE3d::num_parameters,
-                                  globalProblem.local_parametrization_se3
+                                  local_parametrization_se3
         );
 
         // Run over all observations of this keyframe
@@ -263,7 +272,7 @@ bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vect
             // Reprojection
             problem.AddResidualBlock(
                     ReprojectionConstraint::create_cost_function(pix_coords, 1.0),
-                    globalProblem.loss_function_repr,
+                    loss_function_repr,
                     pose.data(), // (global) camera pose during observation
                     map_point.point.data(), // 3D point
                     intrinsics_optimized.data()
@@ -273,7 +282,7 @@ bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vect
             problem.AddResidualBlock(
                     DepthPrior::create_cost_function(pix_coords,
                                                      depth, globalProblem.WEIGHT_UNPR),
-                    globalProblem.loss_function_unpr,
+                    loss_function_unpr,
                     pose.data(),
                     map_point.point.data(),
                     intrinsics_optimized.data());
@@ -303,10 +312,10 @@ void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFr
                      const Vector4d &intrinsics_initial, Vector4d &intrinsics_optimized) {
 
     // Global *optimization* options
-    ceresGlobalProblem globalProblem= ceresGlobalProblem();
+    ceresGlobalProblem globalProblem = ceresGlobalProblem();
 
     // Window specific stuff
-    for (int kf_i = 0; kf_i <2; kf_i++){
-        windowOptimize(globalProblem,kf_i,kf_i+2,keyframes,map,intrinsics_initial, intrinsics_optimized);
+    for (int kf_i = 0; kf_i < 2; kf_i++) {
+        windowOptimize(globalProblem, kf_i, kf_i + 2, keyframes, map, intrinsics_initial, intrinsics_optimized);
     }
 }

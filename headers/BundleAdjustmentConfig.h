@@ -37,7 +37,7 @@ public:
 
 };
 
-class ceresGlobalProblem{
+class ceresGlobalProblem {
 public:
 
     const double HUB_P_REPR = 1e-2; // Huber loss parameter for reprojection constraints
@@ -47,18 +47,11 @@ public:
 
     ceres::Solver::Options options;
 
-    ceres::LossFunctionWrapper *loss_function_repr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_REPR),
-                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
-    ceres::LossFunctionWrapper *loss_function_unpr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_UNPR),
-                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
-
-    ceres::LocalParameterization *local_parametrization_se3 = new Sophus::LocalParameterizationSE3;
-
     ceresGlobalProblem() {
         initialize_options();
     }
 
-    void initialize_options(){
+    void initialize_options() {
         options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
         options.minimizer_progress_to_stdout = true;
         options.max_num_iterations = 200;
