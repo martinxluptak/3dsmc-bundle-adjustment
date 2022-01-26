@@ -6,8 +6,14 @@
 
 void matchKeypoints(const Mat &descriptors1, const Mat &descriptors2,
                     vector<vector<DMatch>> &knn_matches) {
+    // for ORB (binary)
   Ptr<DescriptorMatcher> matcher =
       DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
+
+  // for SIFT and SURF
+//  Ptr<DescriptorMatcher> matcher =
+//      DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
+
   matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
 };
 
@@ -64,6 +70,7 @@ void initializeRelativePose(const vector<Vector3d> &points1,
   // run ransac
   ransac.sac_model_ = relposeproblem_ptr;
   ransac.threshold_ = 0.1;
+//  ransac.probability_ = 0.999;
   ransac.max_iterations_ = 50;
   ransac.computeModel(0);
   // return the result
