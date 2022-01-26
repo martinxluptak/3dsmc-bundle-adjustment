@@ -22,6 +22,23 @@ using namespace Eigen;
 class BundleAdjustmentConfig {
 
 public:
+  /*
+   *  File paths
+   */
+  const std::string CAMERA_DEFAULT_INTRINSICS_PATH =
+      "../../Data/freiburg1_intrinsics.txt";
+  const std::string DATASET_FILEPATH =
+      "../../Data/rgbd_dataset_freiburg1_xyz/"; // SET TO
+                                                // <your_path>/rgbd_dataset_freiburg1_xyz/
+  const std::string OUTPUT_POSES_PATH =
+      "../../output/freiburg1_poses.txt"; // output:
+
+  /*
+   *  Keypoint extraction + feature matching
+   */
+  int NUM_FEATURES = 1000;
+  const uint KEYFRAME_INCREMENT = 10;
+
     /*
      *  File paths
      */

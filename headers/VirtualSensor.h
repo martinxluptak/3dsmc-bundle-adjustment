@@ -104,6 +104,16 @@ public:
     return true;
   }
 
+  std::string GetCurrentRGBTimestamp() {
+    return m_filenameColorImages[m_currentIdx].substr(
+        4, m_filenameColorImages[m_currentIdx].size() - 8);
+  }
+
+  std::string GetCurrentDepthTimestamp() {
+    return m_filenameDepthImages[m_currentIdx].substr(
+        4, m_filenameDepthImages[m_currentIdx].size() - 8);
+  }
+
   unsigned int GetCurrentFrameCnt() { return (unsigned int)m_currentIdx; }
 
   // get current color data
