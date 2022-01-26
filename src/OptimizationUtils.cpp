@@ -315,7 +315,9 @@ void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFr
     ceresGlobalProblem globalProblem = ceresGlobalProblem();
 
     // Window specific stuff
-    for (int kf_i = 0; kf_i < 2; kf_i++) {
+    int N_kf = int(keyframes.size());
+    if (globalProblem.window_size==-1) windowOptimize(globalProblem, 0, N_kf-1, keyframes, map, intrinsics_initial, intrinsics_optimized);
+    for (int kf_i = 0; kf_i < N_kf; kf_i+=globalProblem.window_size) {
         windowOptimize(globalProblem, kf_i, kf_i + 2, keyframes, map, intrinsics_initial, intrinsics_optimized);
     }
 }

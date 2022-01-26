@@ -45,6 +45,8 @@ public:
     const double WEIGHT_UNPR = 5; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
     const double HUB_P_UNPR = 1e-2; // Huber loss parameter for depth prior (i.e. unprojection constraints)
 
+    const int window_size = 10; // how many keyframes are we optimizing for every window? Put -1 to have a unique window
+
     ceres::Solver::Options options;
 
     ceresGlobalProblem() {
