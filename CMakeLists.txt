@@ -26,6 +26,7 @@ set(HEADER_FILES
         "headers/Matching.h"
         "headers/Map3D.h"
         "headers/CommonTypes.h"
+        "headers/BundleAdjustmentConfig.h"
         )
 
 set(SOURCE_FILES
