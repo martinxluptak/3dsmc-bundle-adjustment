@@ -55,6 +55,7 @@ int main() {
 
         KeyFrame current_frame;
         current_frame.frame_id = sensor.GetCurrentFrameCnt();
+        current_frame.timestamp = sensor.GetCurrentRGBTimestamp();
         const auto &rgb = sensor.GetGrayscaleFrame();
         const auto &depth = sensor.GetDepthFrame();
 

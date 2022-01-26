@@ -13,7 +13,8 @@ using namespace cv;
 typedef int LandmarkId;
 
 struct KeyFrame {
-  int frame_id;
+  uint frame_id;
+  string timestamp;
   Sophus::SE3d T_w_c; // relative to frame 1
   vector<KeyPoint> keypoints;
   Mat descriptors;
