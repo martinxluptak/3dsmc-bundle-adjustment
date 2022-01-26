@@ -73,12 +73,12 @@ vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
     // debugging
     //    cout << "corresp. point func: " << point2d.pt << endl;
 
-    const auto u = static_cast<double>(point2d.pt.x);
-    const auto v = static_cast<double>(point2d.pt.y);
+      const auto u = static_cast<double>(point2d.pt.x);
+      const auto v = static_cast<double>(point2d.pt.y);
 
-    const double z = depth_frame1.at<double>(v, u);
-    const double x = z * (u - intrinsics(0, 2)) / intrinsics(0, 0);
-    const double y = z * (v - intrinsics(1, 2)) / intrinsics(1, 1);
+      const double z = depth_frame1.at<double>(v, u);
+      const double x = z * (u - intrinsics[2]) / intrinsics[0];
+      const double y = z * (v - intrinsics[3]) / intrinsics[1];
 
     point3d << x, y, z;
     points3d.push_back(point3d);
