@@ -9,6 +9,8 @@
 #include <utility>
 #include <ceres/ceres.h>
 #include "sophus/local_parameterization_se3.hpp"
+#include "BundleAdjustmentConfig.h"
+#include "Map3D.h"
 
 using namespace std;
 using namespace Eigen;
@@ -194,13 +196,8 @@ void countConstraints(const BundleAdjustmentConfig &cfg, const Map3D &map, const
 
             auto local_depth = associated_keyframe.points3d_local[local_index][2];
 
-            if (local_depth > BundleAdjustmentConfig::NEG_INF && local_depth < 0) {
-                cout << local_depth << " is < 0" << endl;
-                continue;
-            }
-
-            if (local_depth <= BundleAdjustmentConfig::NEG_INF) {
-                cout << "Local depth is -inf" << endl;
+            if (local_depth < 1e-15) {
+                cout << "Local depth "<< local_depth << " is < 0" << endl;
                 continue;
             }
 
@@ -209,139 +206,128 @@ void countConstraints(const BundleAdjustmentConfig &cfg, const Map3D &map, const
     }
 }
 
+ceresGlobalProblem initialiseGlobalProblem(){
+    const double HUB_P_REPR = 1e-2; // Huber loss parameter for reprojection constraints
+    const double WEIGHT_INTRINSICS = 1e-4;
+    const double WEIGHT_UNPR = 5; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
+    const double HUB_P_UNPR = 1e-2; // Huber loss parameter for depth prior (i.e. unprojection constraints)
 
-void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFrame> &keyframes,
-                     const Vector4d &intrinsics_initial) {
-    ////////////////////////////////
-    //  OPTIMIZATION WITH CERES  //
-    //////////////////////////////
-
-    /*
-     * Define ceres problem options.
-     */
-    ceres::Problem problem; // Optimization variables, poses, map and intrinsics_initial
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     options.minimizer_progress_to_stdout = true;
     options.max_num_iterations = 200;
 
-    /*
-     * Count residuals before adding them.
-     * This allows us to normalize the weight of each constraint by the number of constraints.
-     * The following for-loops ONLY count the number of constraints and do not do anything
-     * with regards to the optimization algorithm.
-     */
-    int reprojection_constraints_count = 0;
-    int unprojection_constraints_count = 0;
-    countConstraints(cfg, map, keyframes, reprojection_constraints_count, unprojection_constraints_count);
+    auto *loss_function_repr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_REPR),
+                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
+    auto *loss_function_unpr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(HUB_P_UNPR),
+                                                              ceres::DO_NOT_TAKE_OWNERSHIP);
 
-    /*
-     * Add camera poses as parameter blocks.
-     * (Saved in keyframes as T_w_c)
-     */
     ceres::LocalParameterization *local_parametrization_se3 = new Sophus::LocalParameterizationSE3;
-    for (auto &keyframe: keyframes) {
-        problem.AddParameterBlock(keyframe.T_w_c.data(),
-                                  Sophus::SE3d::num_parameters,
-                                  local_parametrization_se3
-        );
-    }
 
-    /*
-     * Add world 3D points as parameter blocks.
-     * Note: the parameter block must always be an array of doubles!
-     */
-    for (auto &it: map) {
-        auto &landmark_3d_point = it.second.point;
-        problem.AddParameterBlock(landmark_3d_point.data(), 3);
-    }
+    ceresGlobalProblem globalProblem = ceresGlobalProblem(HUB_P_REPR,WEIGHT_INTRINSICS,WEIGHT_UNPR, HUB_P_UNPR, options, loss_function_repr, loss_function_unpr, local_parametrization_se3);
 
-    /*
-     *  Add camera intrinsics as parameter block.
-     *  Initialize intrinsics_optimized from intrinsics_initial
-     *  Keep a copy of intrinsics_initial to compare the values after optimization.
-     */
-    auto intrinsics_optimized(intrinsics_initial);
+    return globalProblem;
+}
+
+bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vector<KeyFrame> & keyframes, Map3D & map, const Vector4d &intrinsics_initial, Vector4d & intrinsics_optimized){
+
+    ceres::Problem problem; // Optimization variables, poses, map and intrinsics_initial
+    ceres::Solver::Summary summary;
+
+    set<int> already_observed_pts;  // we will visit a 3D map point more than once below. We need this not to apply T1->i twice
+
+    auto initialPose = keyframes[kf_i].T_w_c;
+    auto initialPoseInv = keyframes[kf_i].T_w_c.inverse();
+
+    // Add all parameter blocks to the problem, create the residuals
+    // Intrinsics
     problem.AddParameterBlock(intrinsics_optimized.data(), 4);
-
-
-    /*
-     * Define loss function for reprojection error.
-     */
-    auto *loss_function_repr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(cfg.HUB_P_REPR),
-                                                              ceres::TAKE_OWNERSHIP);
-    auto *loss_function_unpr = new ceres::LossFunctionWrapper(new ceres::HuberLoss(cfg.HUB_P_UNPR),
-                                                              ceres::TAKE_OWNERSHIP);
-
-    /*
-     * Iterate over map of landmarks
-     */
-    for (auto &it: map) {
-        auto &landmarkId = it.first;
-        auto &landmark = it.second;
-        /*
-         * Iterate over each observation of the same landmark.
-         */
-        for (auto &observation: landmark.observations) {
-            auto keyframe_index = observation.first / cfg.KEYFRAME_INCREMENT;
-            auto &associated_keyframe = keyframes[keyframe_index];
-            auto &observed_pixel = observation.second;
-            Vector2d observed_pixel_vec2d(observed_pixel.x, observed_pixel.y); // Conversion from Point2d to Vector2d
-
-            /*
-             *  Add residual block - reprojection constraint.
-             */
-            problem.AddResidualBlock(
-                    ReprojectionConstraint::create_cost_function(
-                            observed_pixel_vec2d,
-                            1.0 / reprojection_constraints_count // divide weight by # of reprojection constraints
-                    ),
-                    loss_function_repr,
-                    associated_keyframe.T_w_c.data(), // (global) camera pose during observation
-                    landmark.point.data(), // 3D point
-                    intrinsics_optimized.data()
-            );
-
-            int local_index = findLocalPointIndex(associated_keyframe, landmarkId);
-            double local_depth = associated_keyframe.points3d_local[local_index][2]; // get Z coordinate from this vector.
-
-            /*
-             * Only add the depth constraint if local_depth has a valid value.
-             * Valid values EXCLUDE:
-             * - negative depth values
-             * - depth set to negative infinity
-             */
-            if (local_depth <= BundleAdjustmentConfig::NEG_INF || local_depth < 0) {
-                continue;
-            }
-
-            /*
-             *  Add residual block - depth constraint.
-             */
-            problem.AddResidualBlock(
-                    DepthPrior::create_cost_function(
-                            observed_pixel_vec2d,
-                            local_depth,
-                            cfg.WEIGHT_UNPR / unprojection_constraints_count
-                    ),  // divide by # of residuals for normalizing
-                    loss_function_unpr,
-                    associated_keyframe.T_w_c.data(),
-                    landmark.point.data(),
-                    intrinsics_optimized.data()
-            );
-        }
-    }
-
-    // Optimize for the intrinsics_initial -> we must add a (small) prior
     problem.AddResidualBlock(
-            IntrinsicsPrior::create_cost_function(intrinsics_initial, cfg.WEIGHT_INTRINSICS),
+            IntrinsicsPrior::create_cost_function(intrinsics_initial, globalProblem.WEIGHT_INTRINSICS),
             nullptr, // squared loss
             intrinsics_optimized.data()
     );
+    // Poses, map points (only the relevant ones)
+    for (int kf_n = kf_i; kf_n <= kf_f; kf_n++) {
 
-    // Constrain the problem
-    problem.SetParameterBlockConstant(keyframes[0].T_w_c.data()); // any pose, kept constant, will do
+        // Modify the poses, make them relative to the first frame, add them to the problem
+        auto &curr_kf = keyframes[kf_n];
+        curr_kf.T_w_c = Sophus::SE3d(initialPoseInv * curr_kf.T_w_c);
+        // This is the respective pose to be optimized
+        auto &pose = curr_kf.T_w_c;
+        problem.AddParameterBlock(pose.data(),
+                                  Sophus::SE3d::num_parameters,
+                                  globalProblem.local_parametrization_se3
+        );
 
-    ceres::Solver::Summary summary;
-    ceres::Solve(options, &problem, &summary);
+        // Run over all observations of this keyframe
+        for (auto index_pair: curr_kf.global_points_map) {
+            int landmarkId = index_pair.second;   // id into the 3d map of this observed point
+            int localId = index_pair.first;
+
+            auto depth = curr_kf.points3d_local[localId](2);
+            Vector2d pix_coords(curr_kf.keypoints[localId].pt.x, curr_kf.keypoints[localId].pt.y);
+
+            // Discard this observation if it has negative depth. todo: to be removed
+            if (depth <= 1e-15) {
+//                cout << "Negative and thus unadmissible depth" << endl;
+                continue;
+            }
+
+            // Check if we never observed such a point. If so, move it to 1st frame of reference
+            auto &map_point = map.at(landmarkId);
+            if (already_observed_pts.find(landmarkId) == already_observed_pts.end()) {
+                already_observed_pts.insert(landmarkId);
+                // Move this point into frame kf_i
+                map_point.point = initialPoseInv * map_point.point;   //yes, this works
+                problem.AddParameterBlock(map_point.point.data(), 3);
+            }
+
+            // Reprojection
+            problem.AddResidualBlock(
+                    ReprojectionConstraint::create_cost_function(pix_coords, 1.0),
+                    globalProblem.loss_function_repr,
+                    pose.data(), // (global) camera pose during observation
+                    map_point.point.data(), // 3D point
+                    intrinsics_optimized.data()
+            );
+
+            // Unprojection
+            problem.AddResidualBlock(
+                    DepthPrior::create_cost_function(pix_coords,
+                                                     depth, globalProblem.WEIGHT_UNPR),
+                    globalProblem.loss_function_unpr,
+                    pose.data(),
+                    map_point.point.data(),
+                    intrinsics_optimized.data());
+        }
+
+    }
+
+    // TODO: remember normalization of the residuals!
+
+    problem.SetParameterBlockConstant(keyframes[kf_i].T_w_c.data()); // any pose, kept constant, will do
+    ceres::Solve(globalProblem.options, &problem, &summary);
+
+    // Re-put everything in the correct frame, both poses and map points which we messed up with
+    for (int kf_n = kf_i; kf_n <= kf_f; kf_n++) {
+        // Remodify the poses
+        auto &curr_kf = keyframes[kf_n];
+        curr_kf.T_w_c = Sophus::SE3d(initialPose * curr_kf.T_w_c);  // 1->W * C->1 = C->W
+    }
+    for (int lId: already_observed_pts) {
+        map.at(lId).point = initialPose * map.at(lId).point;
+    }
+
+    return true;
+}
+
+void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFrame> &keyframes,
+                     const Vector4d &intrinsics_initial, Vector4d &intrinsics_optimized) {
+
+    ceresGlobalProblem globalProblem=initialiseGlobalProblem();
+    // Window specific stuff
+//    for (int kf_i = 0; kf_i <1; kf_i++){
+//        windowOptimize(globalProblem,kf_i,kf_i+2,keyframes,map,intrinsics_initial, intrinsics_optimized);
+//    }
 }

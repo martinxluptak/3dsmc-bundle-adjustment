@@ -2,15 +2,15 @@
 // Created by lupta on 1/26/2022.
 //
 
+#ifndef BUNDLE_ADJUSTMENT_OPTIMIZATIONUTILS_H
+#define BUNDLE_ADJUSTMENT_OPTIMIZATIONUTILS_H
+
 #include <string>
 #include "Eigen/Dense"
 #include "CommonTypes.h"
 #include "BundleAdjustmentConfig.h"
 
 using namespace Eigen;
-
-#ifndef BUNDLE_ADJUSTMENT_OPTIMIZATIONUTILS_H
-#define BUNDLE_ADJUSTMENT_OPTIMIZATIONUTILS_H
 
 Vector4d read_camera_intrinsics_from_file(const string &file_path);
 
@@ -57,11 +57,11 @@ void countConstraints(
  */
 int findLocalPointIndex(const KeyFrame &keyframe, const int landmarkId);
 
+ceresGlobalProblem initialiseGlobalProblem();
 
-void runOptimization(
-        const BundleAdjustmentConfig &cfg,
-        Map3D &map,
-        vector<KeyFrame> &keyframes,
-        const Vector4d &intrinsics_initial);
+bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vector<KeyFrame> & keyframes, Map3D & map, const Vector4d &intrinsics_initial, Vector4d & intrinsics_optimized);
+
+void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFrame> &keyframes,
+                     const Vector4d &intrinsics_initial, Vector4d &intrinsics_optimized);
 
 #endif //BUNDLE_ADJUSTMENT_OPTIMIZATIONUTILS_H
