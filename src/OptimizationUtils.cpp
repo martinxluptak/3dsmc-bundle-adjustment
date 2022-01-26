@@ -12,7 +12,7 @@ using namespace Eigen;
 
 class ReprojectionConstraint {
 public:
-    ReprojectionConstraint(const Vector2d &pPix) : p_pix(pPix) {}
+    ReprojectionConstraint(const Vector2d &pPix, const double & weight) : p_pix(pPix), weight(weight) {}
 
     template<typename T>
     bool operator()(const T *const pose, const T *const x_w, const T *const intr,
@@ -34,21 +34,22 @@ public:
         const Vector<T, 2> p_pix_est = (intrinsics * p_C / p_C.z())(seq(0, 1));
 
         // Reprojection error
-        residuals[0] = T(p_pix_est[0]) - T(p_pix[0]);
-        residuals[1] = T(p_pix_est[1]) - T(p_pix[1]);
+        residuals[0] = T(sqrt(weight))*(T(p_pix_est[0]) - T(p_pix[0]));
+        residuals[1] = T(sqrt(weight))*(T(p_pix_est[1]) - T(p_pix[1]));
 
         return true;
     }
 
     // Hide the implementation from the user
-    static ceres::CostFunction *create_cost_function(const Vector2d &pPix) {
+    static ceres::CostFunction *create_cost_function(const Vector2d &pPix, const double & weight) {
         return new ceres::AutoDiffCostFunction<ReprojectionConstraint, 2, 7, 3, 4>(
-                new ReprojectionConstraint(pPix)
+                new ReprojectionConstraint(pPix, weight)
         );
     }
 
 private:
     Vector2d p_pix;
+    double weight;  // to weight this residual
 };
 
 // We make sure not to get too far away from the depths measured from the depth sensor
