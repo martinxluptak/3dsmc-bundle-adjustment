@@ -8,7 +8,7 @@ void getORB(const Mat &rgb, const Mat &depth,  vector<KeyPoint> &keypoints, Mat 
             int &num_features) {
     Ptr<ORB> detector = ORB::create(num_features);
     detector->detectAndCompute(rgb, noArray(), keypoints, descriptors);
-//    pruneMINF(depth, keypoints, descriptors);
+    pruneMINF(depth, keypoints, descriptors);
 //    cout << "key: " << keypoints.size() << endl;
 //    cout << "desc: " << descriptors.size() << endl;
 }
@@ -35,13 +35,13 @@ void pruneMINF(Mat depth, vector<KeyPoint> &keypoints, Mat &descriptors){
     for (int id=0; id < keypoints.size(); id++){
         int x = static_cast<int>(keypoints[id].pt.x);
         int y = static_cast<int>(keypoints[id].pt.y);
-        if (depth.at<int>(y, x) > 0)
+        if (depth.at<float>(y, x) > 1e-15)
             good_ids.push_back(id);
     }
 
     for (int i=0; i<good_ids.size(); i++){
-        good_keypoints.push_back(keypoints[i]);
-        good_descriptors.push_back(descriptors.row(i));
+        good_keypoints.push_back(keypoints[good_ids[i]]);
+        good_descriptors.push_back(descriptors.row(good_ids[i]));
     }
 
     keypoints = good_keypoints;
