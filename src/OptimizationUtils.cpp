@@ -286,8 +286,6 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
 
     }
 
-    // TODO: remember normalization of the residuals!
-
     problem.SetParameterBlockConstant(keyframes[kf_i].T_w_c.data()); // any pose, kept constant, will do
     ceres::Solve(globalProblem.options, &problem, &summary);
 
@@ -312,7 +310,7 @@ void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFr
 
     // Window specific stuff
     int N_kf = int(keyframes.size());
-    if (globalProblem.window_size==-1) windowOptimize(globalProblem, 0, N_kf-3, keyframes, map, intrinsics_initial, intrinsics_optimized);
+    if (globalProblem.window_size==-1) windowOptimize(globalProblem, 0, N_kf-1, keyframes, map, intrinsics_initial, intrinsics_optimized);
     else if (globalProblem.window_size > N_kf) cout << "This window is too large." << endl;
     else for (int kf_i = 0; kf_i < N_kf; kf_i+=globalProblem.window_size) windowOptimize(globalProblem, kf_i, kf_i + 2, keyframes, map, intrinsics_initial, intrinsics_optimized);
 
