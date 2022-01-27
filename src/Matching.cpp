@@ -4,17 +4,19 @@
 
 #include <Matching.h>
 
-void matchKeypoints(const Mat &descriptors1, const Mat &descriptors2,
+void matchKeypoints(const string &detector,
+                    const Mat &descriptors1, const Mat &descriptors2,
                     vector<vector<DMatch>> &knn_matches) {
-    // for ORB (binary)
-  Ptr<DescriptorMatcher> matcher =
-      DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
-
-  // for SIFT and SURF
-//  Ptr<DescriptorMatcher> matcher =
-//      DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
-
-  matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+    if (detector == "ORB") {
+        Ptr<DescriptorMatcher> matcher =
+                DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE_HAMMING);
+        matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+    } else if (detector == "SIFT" || detector == "SURF") {
+        Ptr<DescriptorMatcher> matcher =
+                DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
+        matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+    } else
+        cout << "Provide correct detector name" << endl;
 };
 
 vector<DMatch> filterMatchesLowe(const vector<vector<DMatch>> &knn_matches,

@@ -25,14 +25,16 @@ public:
     /*
      *  File paths
      */
-    const string CAMERA_DEFAULT_INTRINSICS_PATH = "../../Data/freiburg1_intrinsics.txt";
-    const string DATASET_FILEPATH = "../../Data/rgbd_dataset_freiburg1_xyz/"; // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
-    const string OUTPUT_POSES_PATH = "../../output/freiburg1_poses.txt"; // output:
+    const string CAMERA_DEFAULT_INTRINSICS_PATH = "/../../Data/freiburg1_intrinsics.txt";
+    const string DATASET_FILEPATH = "/../../Data/rgbd_dataset_freiburg1_xyz/"; // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
+    const string OUTPUT_POSES_PATH = "/../../output/freiburg1_poses.txt"; // output:
 
     /*
      *  Keypoint extraction + feature matching
      */
-    int NUM_FEATURES = 1000;
+    const string DETECTOR = "SIFT"; // options: ORB, SIFT, SURF
+    int NUM_FEATURES = 1000; // hyperparameter for ORB and SIFT
+    int HESSIAN_THRES = 100; // hyperparameter for SURF; default value: 100
     const uint KEYFRAME_INCREMENT = 10;
 
 };

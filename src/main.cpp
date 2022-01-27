@@ -15,7 +15,7 @@ using namespace std;
 using namespace Eigen;
 
 void tracking_step(VirtualSensor & sensor, vector<KeyFrame> & keyframes, Map3D & map, BundleAdjustmentConfig & cfg, int & landmark_id, Vector4d & intrinsics_initial){
-    // Transfromation from frame 2 to 1
+    // Transformation from frame 2 to 1
     Sophus::SE3d T_1_2;
     vector<Vector3d> points3d_before, point3d_after;
 
@@ -25,9 +25,11 @@ void tracking_step(VirtualSensor & sensor, vector<KeyFrame> & keyframes, Map3D &
     const auto &rgb = sensor.GetGrayscaleFrame();
     const auto &depth = sensor.GetDepthFrame();
 
-    // detect keypoints and compute descriptors using ORB
-    getORB(rgb, depth, current_frame.keypoints, current_frame.descriptors,
-           cfg.NUM_FEATURES);
+    getKeypointsAndDescriptors(cfg.DETECTOR,
+                               cfg.NUM_FEATURES, cfg.HESSIAN_THRES,
+                               rgb, depth,
+                               current_frame.keypoints, current_frame.descriptors);
+
     current_frame.points3d_local =
             getLocalPoints3D(current_frame.keypoints, depth, intrinsics_initial);
 
@@ -37,10 +39,9 @@ void tracking_step(VirtualSensor & sensor, vector<KeyFrame> & keyframes, Map3D &
     }
     auto &previous_frame = keyframes.back();
     vector<vector<DMatch>> knn_matches;
-    // match keypoints
 
-    // uncomment relevant lines in the function, depending if ORB/SIFT/SURF
-    matchKeypoints(previous_frame.descriptors, current_frame.descriptors,
+    matchKeypoints(cfg.DETECTOR,
+                   previous_frame.descriptors, current_frame.descriptors,
                    knn_matches);
 
     // filter matches using Lowe's ratio test

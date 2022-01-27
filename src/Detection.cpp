@@ -4,6 +4,20 @@
 
 #include <Detection.h>
 
+void getKeypointsAndDescriptors(const string &detector,
+                              int &num_features, int &hessian_threshold,
+                              const Mat &rgb, const Mat &depth,
+                              vector<KeyPoint> &keypoints, Mat &descriptors) {
+    if (detector == "ORB")
+        getORB(rgb, depth, keypoints, descriptors, num_features);
+    else if (detector == "SIFT")
+        getSIFT(rgb, depth, keypoints, descriptors, num_features);
+    else if (detector == "SURF")
+        getSURF(rgb, depth, keypoints, descriptors, hessian_threshold);
+    else
+        cout << "Provide correct detector name" << endl;
+}
+
 void getORB(const Mat &rgb, const Mat &depth,  vector<KeyPoint> &keypoints, Mat &descriptors,
             int &num_features) {
     Ptr<ORB> detector = ORB::create(num_features);

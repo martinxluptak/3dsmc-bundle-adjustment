@@ -19,7 +19,8 @@ using namespace cv;
 using namespace Eigen;
 using namespace opengv;
 
-void matchKeypoints(const Mat &descriptors1, const Mat &descriptors2,
+void matchKeypoints(const string &detector,
+                    const Mat &descriptors1, const Mat &descriptors2,
                     vector<vector<DMatch>> &knn_matches);
 
 vector<DMatch> filterMatchesLowe(const vector<vector<DMatch>> &knn_matches,
@@ -42,10 +43,5 @@ void initializeRelativePose(const vector<Vector3d> &points1,
                             const vector<Vector3d> &points2,
                             const vector<DMatch> &matches,
                             vector<DMatch> &inliers, Sophus::SE3d &pose);
-
-struct frame_correspondences {
-  vector<Point2d> frame1;
-  vector<Point2d> frame2;
-};
 
 #endif // BUNDLE_ADJUSTMENT_MATCHING_H
