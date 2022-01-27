@@ -188,8 +188,8 @@ int countConstraints(const Map3D &map, const vector<KeyFrame> &keyframes, int kf
             auto depth = curr_kf.points3d_local[localId](2);
 
             // Discard this observation if it has negative depth. todo: to be removed
-            if (depth <= 1e-15) {
-//                cout << "Negative and thus unadmissible depth" << endl;
+            if (depth <= 1e-15 || localId >= curr_kf.points3d_local.size()) {
+                cout << "Negative and thus unadmissible depth " << depth << endl;
                 continue;
             }
 
@@ -252,11 +252,10 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
             Vector2d pix_coords(curr_kf.keypoints[localId].pt.x, curr_kf.keypoints[localId].pt.y);
 
             // Discard this observation if it has negative depth. todo: to be removed
-            if (depth <= 1e-15) {
+            if (depth <= 1e-15 || localId >= curr_kf.points3d_local.size()) {
 //                cout << "Negative and thus unadmissible depth" << endl;
                 continue;
             }
-
             // Check if we never observed such a point. If so, move it to 1st frame of reference
             auto &map_point = map.at(landmarkId);
             if (already_observed_pts.find(landmarkId) == already_observed_pts.end()) {
@@ -313,8 +312,8 @@ void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFr
 
     // Window specific stuff
     int N_kf = int(keyframes.size());
-    if (globalProblem.window_size==-1) windowOptimize(globalProblem, 0, N_kf-1, keyframes, map, intrinsics_initial, intrinsics_optimized);
-    if (globalProblem.window_size > N_kf) cout << "This window is too large." << endl;
+    if (globalProblem.window_size==-1) windowOptimize(globalProblem, 0, N_kf-3, keyframes, map, intrinsics_initial, intrinsics_optimized);
+    else if (globalProblem.window_size > N_kf) cout << "This window is too large." << endl;
     else for (int kf_i = 0; kf_i < N_kf; kf_i+=globalProblem.window_size) windowOptimize(globalProblem, kf_i, kf_i + 2, keyframes, map, intrinsics_initial, intrinsics_optimized);
 
 }
