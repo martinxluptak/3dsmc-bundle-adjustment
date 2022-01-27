@@ -72,8 +72,8 @@ void initializeRelativePose(const vector<Vector3d> &points1,
   // run ransac
   ransac.sac_model_ = relposeproblem_ptr;
   ransac.threshold_ = 0.1;
-//  ransac.probability_ = 0.999;
-  ransac.max_iterations_ = 100;
+  ransac.probability_ = 0.999;
+//  ransac.max_iterations_ = 100;
   ransac.computeModel(0);
   // return the result
   for (int inlier : ransac.inliers_) {
