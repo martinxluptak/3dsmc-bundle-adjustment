@@ -98,6 +98,7 @@ int main() {
     }
     cout << endl << "End of the sequence.\n" << endl;
 
+    // todo: will be removed
     ///////////////////////////////
     //  OPTIMIZATION WITH CERES  //
     ///////////////////////////////
