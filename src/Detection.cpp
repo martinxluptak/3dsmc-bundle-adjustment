@@ -28,20 +28,16 @@ void getSURF(const Mat &rgb, const Mat &depth, vector<KeyPoint> &keypoints, Mat 
 }
 
 void pruneMINF(Mat depth, vector<KeyPoint> &keypoints, Mat &descriptors){
-    vector<int> good_ids;
     vector<KeyPoint> good_keypoints;
     Mat good_descriptors;
 
     for (int id=0; id < keypoints.size(); id++){
         int x = static_cast<int>(keypoints[id].pt.x);
         int y = static_cast<int>(keypoints[id].pt.y);
-        if (depth.at<float>(y, x) > 1e-15)
-            good_ids.push_back(id);
-    }
-
-    for (int i=0; i<good_ids.size(); i++){
-        good_keypoints.push_back(keypoints[good_ids[i]]);
-        good_descriptors.push_back(descriptors.row(good_ids[i]));
+        if (depth.at<float>(y, x) > 1e-15) {
+            good_keypoints.push_back(keypoints[id]);
+            good_descriptors.push_back(descriptors.row(id));
+        }
     }
 
     keypoints = good_keypoints;
