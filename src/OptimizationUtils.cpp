@@ -188,7 +188,7 @@ int countConstraints(const Map3D &map, const vector<KeyFrame> &keyframes, int kf
             auto depth = curr_kf.points3d_local[localId](2);
 
             // Discard this observation if it has negative depth. todo: to be removed
-            if (depth <= 1e-15 || localId >= curr_kf.points3d_local.size()) {
+            if (depth <= 1e-15) {
                 cout << "Negative and thus unadmissible depth " << depth << endl;
                 continue;
             }
@@ -252,7 +252,7 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
             Vector2d pix_coords(curr_kf.keypoints[localId].pt.x, curr_kf.keypoints[localId].pt.y);
 
             // Discard this observation if it has negative depth. todo: to be removed
-            if (depth <= 1e-15 || localId >= curr_kf.points3d_local.size()) {
+            if (depth <= 1e-15) {
 //                cout << "Negative and thus unadmissible depth" << endl;
                 continue;
             }

@@ -71,7 +71,7 @@ void initializeRelativePose(const vector<Vector3d> &points1,
   ransac.sac_model_ = relposeproblem_ptr;
   ransac.threshold_ = 0.1;
 //  ransac.probability_ = 0.999;
-  ransac.max_iterations_ = 50;
+  ransac.max_iterations_ = 100;
   ransac.computeModel(0);
   // return the result
   for (int inlier : ransac.inliers_) {
@@ -89,8 +89,8 @@ getMatchedPoints(const vector<DMatch> &matches,
                  const vector<KeyPoint> &keypoints2) {
   vector<Point2d> matched_points1, matched_points2; // points that match
   for (int i = 0; i < matches.size(); i++) {
-    int idx1 = matches[i].trainIdx;
-    int idx2 = matches[i].queryIdx;
+    int idx1 = matches[i].queryIdx;
+    int idx2 = matches[i].trainIdx;
     // use match indices to get the keypoints, add to the two lists of points
     matched_points1.push_back(keypoints1[idx1].pt);
     matched_points2.push_back(keypoints2[idx2].pt);
