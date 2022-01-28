@@ -111,7 +111,7 @@ public:
 
   std::string GetCurrentDepthTimestamp() {
     return m_filenameDepthImages[m_currentIdx].substr(
-        4, m_filenameDepthImages[m_currentIdx].size() - 8);
+        6, m_filenameDepthImages[m_currentIdx].size() - 10);
   }
 
   unsigned int GetCurrentFrameCnt() { return (unsigned int)m_currentIdx; }

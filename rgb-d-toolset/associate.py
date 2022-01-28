@@ -106,23 +106,30 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='''
     This script takes two data files with timestamps and associates them   
     ''')
-    parser.add_argument('first_file', help='first text file (format: timestamp data)')
-    parser.add_argument('second_file', help='second text file (format: timestamp data)')
-    parser.add_argument('--first_only', help='only output associated lines from first file', action='store_true')
+    parser.add_argument('rgb_file', help='RGB text file (format: timestamp data)')
+    parser.add_argument('depth_file', help='DEPTH text file (format: timestamp data)')
     parser.add_argument('--offset', help='time offset added to the timestamps of the second file (default: 0.0)',default=0.0)
     parser.add_argument('--max_difference', help='maximally allowed time difference for matching entries (default: 0.02)',default=0.02)
+    parser.add_argument('--rgb_output', help='path to write rgb output', default='rgb.txt')
+    parser.add_argument('--depth_output', help='path to write depth output', default='depth.txt')
     args = parser.parse_args()
 
-    first_list = read_file_list(args.first_file)
-    second_list = read_file_list(args.second_file)
+    first_list = read_file_list(args.rgb_file)
+    second_list = read_file_list(args.depth_file)
 
     matches = associate(first_list, second_list,float(args.offset),float(args.max_difference))    
 
-    if args.first_only:
-        for a,b in matches:
-            print(("%f %s"%(a," ".join(first_list[a]))))
-    else:
-        for a,b in matches:
-            print(("%f %s %f %s"%(a," ".join(first_list[a]),b-float(args.offset)," ".join(second_list[b]))))
-            
+    f_rgb = open(args.rgb_output, "w")
+    f_depth = open(args.depth_output, "w")
+
+    # Write dummy lines to mimick datasets' rgb and depth files
+    f_rgb.write("\n\n\n")
+    f_depth.write("\n\n\n")
+
+    for a,b in matches:
+        f_rgb.write(("%f %s\n"%(a," ".join(first_list[a]))))
+        f_depth.write(("%f %s\n"%(b-float(args.offset)," ".join(second_list[b]))))
+
+    f_rgb.close()
+    f_depth.close()
         
