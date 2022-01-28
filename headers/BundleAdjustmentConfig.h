@@ -25,9 +25,9 @@ public:
     /*
      *  File paths
      */
-    const string CAMERA_DEFAULT_INTRINSICS_PATH = "/../../Data/freiburg1_intrinsics.txt";
-    const string DATASET_FILEPATH = "/../../Data/rgbd_dataset_freiburg1_xyz/"; // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
-    const string OUTPUT_POSES_PATH = "/../../output/freiburg1_poses.txt"; // output:
+    const string CAMERA_DEFAULT_INTRINSICS_PATH = "../../Data/ros_default_intrinsics.txt";
+    const string DATASET_FILEPATH = "../../Data/rgbd_dataset_freiburg1_xyz/"; // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
+    const string OUTPUT_POSES_PATH = "../../output/freiburg1_poses.txt"; // output:
 
     /*
      *  Keypoint extraction + feature matching
@@ -43,11 +43,11 @@ class ceresGlobalProblem {
 public:
 
     const double HUB_P_REPR = 1e-2; // Huber loss parameter for reprojection constraints
-    const double WEIGHT_INTRINSICS = 1e-4;
+    const double WEIGHT_INTRINSICS = 1e-6;
     const double WEIGHT_UNPR = 5; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
     const double HUB_P_UNPR = 1e-2; // Huber loss parameter for depth prior (i.e. unprojection constraints)
 
-    const int window_size = 10; // how many keyframes are we optimizing for every window? Put -1 to have a unique window
+    const int window_size = 20; // how many keyframes are we optimizing for every window? Put -1 to have a unique window
 
     ceres::Solver::Options options;
 

@@ -66,10 +66,10 @@ void tracking_step(VirtualSensor & sensor, vector<KeyFrame> & keyframes, Map3D &
 }
 
 int main() {
-    /*
-     * Create an optimization config object.
-     */
+
+    // Some configurations
     auto cfg = BundleAdjustmentConfig();
+    auto cfg_optimization = ceresGlobalProblem();
 
     /////////////////////////////
     //  WINDOWED OPTIMIZATION  //
@@ -80,7 +80,6 @@ int main() {
     vector<KeyFrame> keyframes;
     Vector4d intrinsics_initial = read_camera_intrinsics_from_file(cfg.CAMERA_DEFAULT_INTRINSICS_PATH);
     auto intrinsics_optimized(intrinsics_initial);  // to be later optimized
-
     // Temporary variables
     LandmarkId landmark_id = 0;
 
@@ -92,18 +91,27 @@ int main() {
         return -1;
     }
 
-    // Process every frame in the sequence
+    // Process every frame in the sequence, optimize once in a while
     while (sensor.ProcessNextFrame()) {
-        tracking_step(sensor, keyframes, map, cfg, landmark_id, intrinsics_initial);
-        // todo: insert optimization here! and not below, for better precision of map and what not
+        tracking_step(sensor, keyframes, map, cfg, landmark_id, intrinsics_initial);    // Tracking step
+        if (keyframes.size() % cfg_optimization.window_size == 0 && cfg_optimization.window_size > 0) {
+            windowOptimize(cfg_optimization, keyframes.size() - cfg_optimization.window_size, keyframes.size() - 1,
+                           keyframes, map, intrinsics_initial, intrinsics_optimized);
+        }   // Optimization step
     }
-    cout << endl << "End of the sequence.\n" << endl;
+    if (cfg_optimization.window_size > 0 && keyframes.size() % cfg_optimization.window_size != 0) {
+        windowOptimize(cfg_optimization,
+                       (keyframes.size() / cfg_optimization.window_size) * cfg_optimization.window_size,
+                       keyframes.size() - 1, keyframes, map, intrinsics_initial, intrinsics_optimized);
+    }   // Leftovers
 
-    // todo: will be removed
-    ///////////////////////////////
-    //  OPTIMIZATION WITH CERES  //
-    ///////////////////////////////
+    // Run instead global optimization
+    if (cfg_optimization.window_size <= 0) {
+        windowOptimize(cfg_optimization, 0, keyframes.size() - 1, keyframes, map, intrinsics_initial,
+                       intrinsics_optimized);
+    }
 
-    runOptimization(cfg, map, keyframes, intrinsics_initial, intrinsics_optimized);
+    cout << endl << "End.\n" << endl;
+
     return 0;
 }

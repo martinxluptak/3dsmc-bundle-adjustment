@@ -301,17 +301,3 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
 
     return true;
 }
-
-void runOptimization(const BundleAdjustmentConfig &cfg, Map3D &map, vector<KeyFrame> &keyframes,
-                     const Vector4d &intrinsics_initial, Vector4d &intrinsics_optimized) {
-
-    // Global *optimization* options
-    ceresGlobalProblem globalProblem = ceresGlobalProblem();
-
-    // Window specific stuff
-    int N_kf = int(keyframes.size());
-    if (globalProblem.window_size==-1) windowOptimize(globalProblem, 0, N_kf-1, keyframes, map, intrinsics_initial, intrinsics_optimized);
-    else if (globalProblem.window_size > N_kf) cout << "This window is too large." << endl;
-    else for (int kf_i = 0; kf_i < N_kf; kf_i+=globalProblem.window_size) windowOptimize(globalProblem, kf_i, kf_i + 2, keyframes, map, intrinsics_initial, intrinsics_optimized);
-
-}
