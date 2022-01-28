@@ -314,6 +314,6 @@ void poseOffset(vector<KeyFrame> &keyframes, Sophus::SE3d initial_pose) {
 
     // Given a sequence of keyframes with identity being the first pose, make initial_pose the first pose
     for (auto & kf : keyframes){
-        kf.T_w_c = kf.T_w_c * delta_pose;
+        kf.T_w_c =  delta_pose *  kf.T_w_c;
     }
 }

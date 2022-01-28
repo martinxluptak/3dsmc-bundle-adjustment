@@ -54,6 +54,9 @@ int findLocalPointIndex(const KeyFrame &keyframe, const int landmarkId);
 
 bool windowOptimize(ceresGlobalProblem & globalProblem, int kf_i, int kf_f, vector<KeyFrame> & keyframes, Map3D & map, const Vector4d &intrinsics_initial, Vector4d & intrinsics_optimized);
 
-void poseOffset(vector<KeyFrame> & keyframes, Sophus::SE3d initial_pose);
+Sophus::SE3d getFirstPose(const string & first_timestamp,
+                          const string & ground_truth_file_path);
+
+void poseOffset(vector<KeyFrame> &keyframes, const Sophus::SE3d & initial_pose);
 
 #endif //BUNDLE_ADJUSTMENT_OPTIMIZATIONUTILS_H
