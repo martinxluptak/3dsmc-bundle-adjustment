@@ -308,3 +308,12 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
 
     return true;
 }
+
+void poseOffset(vector<KeyFrame> &keyframes, Sophus::SE3d initial_pose) {
+    auto delta_pose = initial_pose * keyframes[0].T_w_c.inverse();  // C0 -> W * (C0 -> W_fictitious)^{-1} = W_fictitious -> W
+
+    // Given a sequence of keyframes with identity being the first pose, make initial_pose the first pose
+    for (auto & kf : keyframes){
+        kf.T_w_c = kf.T_w_c * delta_pose;
+    }
+}
