@@ -110,9 +110,15 @@ if __name__ == '__main__':
     parser.add_argument('depth_file', help='DEPTH text file (format: timestamp data)')
     parser.add_argument('--offset', help='time offset added to the timestamps of the second file (default: 0.0)',default=0.0)
     parser.add_argument('--max_difference', help='maximally allowed time difference for matching entries (default: 0.02)',default=0.02)
-    parser.add_argument('--rgb_output', help='path to write rgb output', default='rgb.txt')
-    parser.add_argument('--depth_output', help='path to write depth output', default='depth.txt')
+    parser.add_argument('--rgb_output', help='path to write rgb output')
+    parser.add_argument('--depth_output', help='path to write depth output')
     args = parser.parse_args()
+
+    if args.rgb_output == None:
+        args.rgb_output = args.rgb_file
+
+    if args.depth_output == None:
+        args.depth_output = args.depth_file
 
     first_list = read_file_list(args.rgb_file)
     second_list = read_file_list(args.depth_file)
