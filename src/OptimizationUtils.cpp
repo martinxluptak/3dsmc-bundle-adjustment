@@ -11,6 +11,8 @@
 #include "sophus/local_parameterization_se3.hpp"
 #include "BundleAdjustmentConfig.h"
 #include "Map3D.h"
+#include "nearest_interp_1d.cpp"
+
 
 using namespace std;
 using namespace Eigen;
@@ -309,7 +311,69 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
     return true;
 }
 
-void poseOffset(vector<KeyFrame> &keyframes, Sophus::SE3d initial_pose) {
+/**
+ * Read the ground_truth.txt file and fetch the pose from ground_truth.txt timestamp, which
+ * is nearest to first_timestamp parameter.
+ *
+ * @param first_timestamp timestamp of the pose to fetch.
+ * @param ground_truth_file_path ground_truth.txt file to read.
+ * @return
+ */
+Sophus::SE3d getFirstPose(const string &first_timestamp, const string &ground_truth_file_path) {
+
+    // Read gt file
+    ifstream infile(ground_truth_file_path);
+    double timestamp, tx, ty, tz, qx, qy, qz, qw;
+    vector<double> timestamps, txs, tys, tzs, qxs, qys, qzs, qws;
+    // ignore file header.
+    string line;
+    // ignore file header
+    getline(infile, line);
+    getline(infile, line);
+    getline(infile, line);
+    while (infile >> timestamp >> tx >> ty >> tz >> qx >> qy >> qz >> qw) {
+        timestamps.push_back(timestamp);
+        txs.push_back(tx);
+        tys.push_back(ty);
+        tzs.push_back(tz);
+        qxs.push_back(qx);
+        qys.push_back(qy);
+        qzs.push_back(qz);
+        qws.push_back(qw);
+    }
+    infile.close();
+
+    // Get the right pose index
+    vector<double> interpolatedTimestamps;
+    vector<int> timestampIndices;
+    vector<double> firstTimestampVector;
+    firstTimestampVector.emplace_back(stod(first_timestamp));
+    tie(interpolatedTimestamps, timestampIndices) =
+            nearest_interp_1d(timestamps, timestamps, firstTimestampVector);
+    int firstPoseIndex = timestampIndices[0];
+
+    // Create the first pose
+    Sophus::SE3d firstPose;
+    Quaternion q(
+            qws[ firstPoseIndex ],
+            qxs[ firstPoseIndex ],
+            qys[ firstPoseIndex ],
+            qzs[ firstPoseIndex ]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
+    Vector3d t(
+            txs[ firstPoseIndex ],
+            tys[ firstPoseIndex ],
+            tzs[ firstPoseIndex ]);
+    Sophus::SE3d::Point tr(t.x(), t.y(), t.z());
+    Sophus::SE3d initialPose(q, tr);
+//    cout.precision(17);
+//    cout << "Input timestamp: " << first_timestamp << endl;
+//    cout << "Closest timestamp: " << interpolatedTimestamps[0] << endl;
+//    cout << "Pose (eigen, sophus): " << t.transpose() << " " << initialPose.translation().transpose() << " | " << initialPose.unit_quaternion() << endl;
+
+    return initialPose;
+}
+
+void poseOffset(vector<KeyFrame> &keyframes, const Sophus::SE3d &initial_pose) {
     auto delta_pose = initial_pose * keyframes[0].T_w_c.inverse();  // C0 -> W * (C0 -> W_fictitious)^{-1} = W_fictitious -> W
 
     // Given a sequence of keyframes with identity being the first pose, make initial_pose the first pose

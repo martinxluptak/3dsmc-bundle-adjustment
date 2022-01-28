@@ -27,7 +27,8 @@ public:
      */
     const string CAMERA_DEFAULT_INTRINSICS_PATH = "../../Data/ros_default_intrinsics.txt";
     const string DATASET_FILEPATH = "../../Data/rgbd_dataset_freiburg1_xyz/"; // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
-    const string OUTPUT_POSES_PATH = "../../output/freiburg1_poses.txt"; // output:
+    const string GROUND_TRUTH_PATH = "../../Data/rgbd_dataset_freiburg1_xyz/groundtruth.txt";
+    const string OUTPUT_POSES_PATH = "../../output/freiburg1_xyz_poses.txt"; // output:
 
     /*
      *  Keypoint extraction + feature matching
