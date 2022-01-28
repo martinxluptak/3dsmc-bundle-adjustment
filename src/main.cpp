@@ -111,6 +111,8 @@ int main() {
                        intrinsics_optimized);
     }
 
+    // write output to file
+    write_keyframe_poses_to_file(cfg.OUTPUT_POSES_PATH, keyframes);
     cout << endl << "End.\n" << endl;
 
     return 0;

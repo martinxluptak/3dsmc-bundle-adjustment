@@ -154,11 +154,18 @@ Vector4d read_camera_intrinsics_from_file(const string &file_path) {
     return intrinsics;
 }
 
-void write_keyframe_poses_to_file(const string &file_path, const vector<KeyFrame> keyframes) {
+void write_keyframe_poses_to_file(const string &file_path, const vector<KeyFrame> & keyframes) {
     ofstream outfile(file_path);
     for (auto &keyframe: keyframes) {
-        // TODO NOT IMPLEMENTED
+        auto & t = keyframe.T_w_c.translation();
+        auto & q = keyframe.T_w_c.unit_quaternion();
+        outfile << keyframe.timestamp << " ";
+        outfile << t.x() << " " << t.y() << " " << t.z() << " ";
+        outfile << q.x() << " " << q.y() << " " << q.z() << " " << q.w();
+        outfile << "\n";
     }
+    outfile.close();
+    cout << "Writing keyframe poses to file: " << file_path << " successful.";
 }
 
 int findLocalPointIndex(const KeyFrame &keyframe, const int landmarkId) {

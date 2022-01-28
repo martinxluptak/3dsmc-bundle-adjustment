@@ -26,7 +26,7 @@ Vector4d read_camera_intrinsics_from_file(const string &file_path);
  * @param keyframes
  */
 void write_keyframe_poses_to_file(const string &file_path,
-                                  const vector<KeyFrame> keyframes);
+                                  const vector<KeyFrame> & keyframes);
 
 /**
  * Count the number of reprojection and unprojection constraints.
