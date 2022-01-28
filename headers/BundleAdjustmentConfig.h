@@ -35,7 +35,7 @@ public:
     const string DETECTOR = "SIFT"; // options: ORB, SIFT, SURF
     int NUM_FEATURES = 1000; // hyperparameter for ORB and SIFT
     int HESSIAN_THRES = 100; // hyperparameter for SURF; default value: 100
-    const uint KEYFRAME_INCREMENT = 10;
+    const uint KEYFRAME_INCREMENT = 5;
 
 };
 
@@ -47,7 +47,8 @@ public:
     const double WEIGHT_UNPR = 5; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
     const double HUB_P_UNPR = 1e-2; // Huber loss parameter for depth prior (i.e. unprojection constraints)
 
-    const int window_size = 20; // how many keyframes are we optimizing for every window? Put -1 to have a unique window
+    const int frame_frequency = 10;  // wait 5 frames to do optimization again
+    const int window_size = 20; // how many keyframes are we optimizing for every window? Put -1 to have a unique window, put 0 to skip optimization
 
     ceres::Solver::Options options;
 
