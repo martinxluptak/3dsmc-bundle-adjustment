@@ -53,7 +53,7 @@ void tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &ma
                            current_frame.points3d_local, lowe_matches, inliers,
                            T_1_2);
 
-    cout << "inliers found: " << inliers.size() << endl;
+    cout << "Found this many inliers: " << inliers.size() << endl;
 
     // Update pose, track on the last saved pose inside keyframes, which could possibly have been optimized
     auto last_pose = keyframes[keyframes.size() - 1].T_w_c;
