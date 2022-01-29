@@ -33,23 +33,23 @@ public:
     /*
      *  Keypoint extraction + feature matching
      */
-    const string DETECTOR = "SIFT"; // options: ORB, SIFT, SURF
+    const string DETECTOR = "SURF"; // options: ORB, SIFT, SURF
     int NUM_FEATURES = 1000; // hyperparameter for ORB and SIFT
     int HESSIAN_THRES = 100; // hyperparameter for SURF; default value: 100
-    const uint KEYFRAME_INCREMENT = 5;
+    const uint KEYFRAME_INCREMENT = 10;
 
 };
 
 class ceresGlobalProblem {
 public:
 
-    const double HUB_P_REPR = 1e-2; // Huber loss parameter for reprojection constraints
+    const double HUB_P_REPR = 1e-3; // Huber loss parameter for reprojection constraints
     const double WEIGHT_INTRINSICS = 1e-6;
-    const double WEIGHT_UNPR = 5; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
-    const double HUB_P_UNPR = 1e-2; // Huber loss parameter for depth prior (i.e. unprojection constraints)
+    const double WEIGHT_UNPR = 2; // weight for unprojection constraint. Relative to the reprojection constraints, who have a weight of 1
+    const double HUB_P_UNPR = 1e-3; // Huber loss parameter for depth prior (i.e. unprojection constraints)
 
-    const int frame_frequency = 10;  // wait 5 frames to do optimization again
-    const int window_size = 20; // how many keyframes are we optimizing for every window? Put -1 to have a unique window, put 0 to skip optimization
+    const int frame_frequency = 50;  // wait this many frames to do optimization again
+    const int window_size = 50; // how many keyframes are we optimizing for every window? Put -1 to have a unique window, put 0 to skip optimization
 
     ceres::Solver::Options options;
 
@@ -60,7 +60,9 @@ public:
     void initialize_options() {
         options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
         options.minimizer_progress_to_stdout = true;
-        options.max_num_iterations = 200;
+        options.max_num_iterations = 75;
+        options.eta = 1e-6;
+        options.trust_region_strategy_type = ceres::DOGLEG;
     }
 
 };

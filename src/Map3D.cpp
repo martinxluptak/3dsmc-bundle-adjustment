@@ -86,7 +86,7 @@ vector<Vector3d> getLocalPoints3D(const vector<KeyPoint> &points,
       const auto u = static_cast<double>(point2d.pt.x);
       const auto v = static_cast<double>(point2d.pt.y);
 
-      const double z = depth_frame1.at<float>(trunc(v), trunc(u));
+      const double z = static_cast<double> (depth_frame1.at<float>(trunc(v), trunc(u)));
       const double x = z * (u - intrinsics[2]) / intrinsics[0];
       const double y = z * (v - intrinsics[3]) / intrinsics[1];
 
