@@ -1,0 +1,10 @@
+From root folder
+
+Association (before everything)
+python rgb-d-toolset/associate.py Data/rgbd_dataset_freiburg1_rpy/rgb.txt Data/rgbd_dataset_freiburg1_rpy/depth.txt
+
+ATE
+python rgb-d-toolset/evaluate_ate.py Data/rgbd_dataset_freiburg1_rpy/groundtruth.txt output/freiburg1_rpy_poses.txt --plot output/img.png
+
+If in doubt, increase Lowe's treshold, framerate, and the optimization window
+
