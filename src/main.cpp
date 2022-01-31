@@ -46,7 +46,7 @@ void tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &ma
                    knn_matches);
 
     // filter matches using Lowe's ratio test
-    vector<DMatch> lowe_matches = filterMatchesLowe(knn_matches, 0.7);
+    vector<DMatch> lowe_matches = filterMatchesLowe(knn_matches, cfg.LOWE_TRESHOLD);
 
     vector<DMatch> inliers;
     initializeRelativePose(previous_frame.points3d_local,
