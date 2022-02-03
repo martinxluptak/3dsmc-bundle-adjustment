@@ -96,19 +96,38 @@ def plot_traj(ax,stamps,traj,style,color,label):
     x = []
     y = []
     last = stamps[0]
-    for i in range(len(stamps)):
-        if stamps[i]-last < 2*interval:
-            x.append(traj[i][0])
-            y.append(traj[i][1])
-        elif len(x)>0:
+
+    if int(args.dim) == 2:
+        for i in range(len(stamps)):
+            if stamps[i]-last < 2*interval:
+                x.append(traj[i][0])
+                y.append(traj[i][1])
+            elif len(x)>0:
+                ax.plot(x,y,style,color=color,label=label)
+                label=""
+                x=[]
+                y=[]
+            last= stamps[i]
+        if len(x)>0:
             ax.plot(x,y,style,color=color,label=label)
-            label=""
-            x=[]
-            y=[]
-        last= stamps[i]
-    if len(x)>0:
-        ax.plot(x,y,style,color=color,label=label)
-            
+
+    elif int(args.dim) == 3:
+        z = []
+        for i in range(len(stamps)):
+            if stamps[i]-last < 2*interval:
+                x.append(traj[i][0])
+                y.append(traj[i][1])
+                z.append(traj[i][2])
+            elif len(x)>0:
+                ax.plot(x,y,z,style,color=color,label=label)
+                label=""
+                x=[]
+                y=[]
+                z=[]
+            last= stamps[i]
+        if len(x)>0:
+            ax.plot(x,y,z,style,color=color,label=label)
+
 
 if __name__=="__main__":
     # parse command line
@@ -124,6 +143,7 @@ if __name__=="__main__":
     parser.add_argument('--save_associations', help='save associated first and aligned second trajectory to disk (format: stamp1 x1 y1 z1 stamp2 x2 y2 z2)')
     parser.add_argument('--plot', help='plot the first and the aligned second trajectory to an image (format: png)')
     parser.add_argument('--verbose', help='print all evaluation data (otherwise, only the RMSE absolute translational error in meters after alignment will be printed)', action='store_true')
+    parser.add_argument('--dim', help='choose plot dimension (2D or 3D)', default=2)
     args = parser.parse_args()
 
     first_list = associate.read_file_list(args.first_file)
@@ -178,18 +198,26 @@ if __name__=="__main__":
         import matplotlib.pylab as pylab
         from matplotlib.patches import Ellipse
         fig = plt.figure()
-        ax = fig.add_subplot(111)
+
+        if int(args.dim) == 2:
+            ax = fig.add_subplot(111)
+        elif int(args.dim) == 3:
+            ax = fig.add_subplot(111, projection='3d')
         plot_traj(ax,first_stamps,first_xyz_full.transpose().A,'-',"black","ground truth")
         plot_traj(ax,second_stamps,second_xyz_full_aligned.transpose().A,'-',"blue","estimated")
 
-        label="difference"
-        for (a,b),(x1,y1,z1),(x2,y2,z2) in zip(matches,first_xyz.transpose().A,second_xyz_aligned.transpose().A):
-            ax.plot([x1,x2],[y1,y2],'-',color="red",label=label)
-            label=""
+        # label="difference"
+        # for (a,b),(x1,y1,z1),(x2,y2,z2) in zip(matches,first_xyz.transpose().A,second_xyz_aligned.transpose().A):
+        #     ax.plot([x1,x2],[y1,y2],'-',color="red",label=label)
+        #     label=""
             
         ax.legend()
-            
+
         ax.set_xlabel('x [m]')
         ax.set_ylabel('y [m]')
+        if int(args.dim) == 3:
+            ax.set_zlabel('z [m]')
+            ax.view_init(elev=None, azim=None)
+
         plt.savefig(args.plot,dpi=90)
         
