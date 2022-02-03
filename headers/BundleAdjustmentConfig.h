@@ -28,15 +28,16 @@ public:
     const string CAMERA_DEFAULT_INTRINSICS_PATH = "../../Data/ros_default_intrinsics.txt";
     const string DATASET_FILEPATH = "../../Data/rgbd_dataset_freiburg1_xyz/"; // SET TO <your_path>/rgbd_dataset_freiburg1_xyz/
     const string GROUND_TRUTH_PATH = "../../Data/rgbd_dataset_freiburg1_xyz/groundtruth.txt";
-    const string OUTPUT_POSES_PATH = "../../output/freiburg1_xyz_poses.txt"; // output:
+    const string OUTPUT_POSES_PATH = "../../output/freiburg1_xyz_poses.txt"; // output
 
     /*
      *  Keypoint extraction + feature matching
      */
+    const uint KEYFRAME_INCREMENT = 10;
     const string DETECTOR = "SURF"; // options: ORB, SIFT, SURF
     int NUM_FEATURES = 1000; // hyperparameter for ORB and SIFT
     int HESSIAN_THRES = 100; // hyperparameter for SURF; default value: 100
-    const uint KEYFRAME_INCREMENT = 10;
+    const float LOWE_THRESHOLD = 0.7;
 
 };
 
