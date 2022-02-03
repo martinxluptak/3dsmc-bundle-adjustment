@@ -43,6 +43,10 @@ import sys
 import numpy
 import argparse
 import associate
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation
 
 def align(model,data):
     """Align two trajectories using the method of Horn (closed-form).
@@ -128,6 +132,84 @@ def plot_traj(ax,stamps,traj,style,color,label):
         if len(x)>0:
             ax.plot(x,y,z,style,color=color,label=label)
 
+def plot_rotations(first_rot_euler, second_rot_euler):
+
+    fig = plt.figure()
+    x = numpy.linspace(0, first_rot_euler.shape[0], first_rot_euler.shape[0])
+
+    ax1 = fig.add_subplot(311)
+    ax1.plot(x, first_rot_euler[:,0],'.',color="black",label="ground_truth")
+    ax1.plot(x, second_rot_euler[:,0],'.',color="blue",label="estimated")
+    ax1.legend()
+    ax1.set_xlabel('keyframe number')
+    ax1.set_ylabel('yaw [degrees]')
+
+    ax2 = fig.add_subplot(312)
+    ax2.plot(x, first_rot_euler[:,1],'.',color="black")
+    ax2.plot(x, second_rot_euler[:,1],'.',color="blue")
+    ax2.set_xlabel('keyframe number')
+    ax2.set_ylabel('pitch [degrees]')
+
+    ax3 = fig.add_subplot(313)
+    ax3.plot(x, first_rot_euler[:,2],'.',color="black")
+    ax3.plot(x, second_rot_euler[:,2],'.',color="blue")
+    ax3.set_xlabel('keyframe number')
+    ax3.set_ylabel('roll [degrees]')
+
+#Absolute Yaw, Roll and Pitch Errors
+def calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler):
+    AYE = calculateAYE(first_rot_euler[:,0], second_rot_euler[:,0])
+    APE = calculateAPE(first_rot_euler[:,1], second_rot_euler[:,1])
+    ARE = calculateARE(first_rot_euler[:,2], second_rot_euler[:,2])
+    print("AYE: ", AYE, "APE: ", APE, "ARE: ", ARE)
+
+#Absolute Yaw Error
+def calculateAYE(first_yaw, second_yaw):
+    n = len(first_yaw)
+    AYE = numpy.sqrt(1/n * numpy.sum(numpy.square(first_yaw - second_yaw)))
+    return AYE
+
+#Absolute Pitch Error
+def calculateAPE(first_pitch, second_pitch):
+    n = len(first_pitch)
+    APE = numpy.sqrt(1/n * numpy.sum(numpy.square(first_pitch - second_pitch)))
+    return APE
+
+#Absolute Roll Error
+def calculateARE(first_roll, second_roll):
+    n = len(first_roll)
+    ARE = numpy.sqrt(1/n * numpy.sum(numpy.square(first_roll - second_roll)))
+    return ARE
+
+#Relative Yaw, Roll and Pitch Errors
+def calculateRelativeRotationErrors(first_rot_euler, second_rot_euler):
+    delta = 5
+    RYE = calculateRYE(first_rot_euler[0:-delta,0], first_rot_euler[delta:,0],
+                 second_rot_euler[0:-delta,0], second_rot_euler[delta:,0])
+    RPE = calculateRPE(first_rot_euler[0:-delta,1], first_rot_euler[delta:,1],
+                 second_rot_euler[0:-delta,1], second_rot_euler[delta:,1])
+    RRE = calculateRRE(first_rot_euler[0:-delta,2], first_rot_euler[delta:,2],
+                 second_rot_euler[0:-delta,2], second_rot_euler[delta:,2])
+    print("RYE: ", RYE, "RPE: ", RPE, "RRE: ", RRE)
+
+#Relative Yaw Error
+def calculateRYE(first_yaw_curr, first_yaw_delta, second_yaw_curr, second_yaw_delta):
+    n = len(first_yaw_curr)
+    print(numpy.sum(numpy.square(first_yaw_delta - first_yaw_curr - (second_yaw_delta - second_yaw_curr))))
+    RYE = numpy.sqrt(1/n * numpy.sum(numpy.square(first_yaw_delta - first_yaw_curr - (second_yaw_delta - second_yaw_curr))))
+    return RYE
+
+#Relative Pitch Error
+def calculateRPE(first_pitch_curr, first_pitch_delta, second_pitch_curr, second_pitch_delta):
+    n = len(first_pitch_curr)
+    RPE = numpy.sqrt(1/n * numpy.sum(numpy.square(first_pitch_delta - first_pitch_curr - (second_pitch_delta - second_pitch_curr))))
+    return RPE
+
+#Relative Roll Error
+def calculateRRE(first_roll_curr, first_roll_delta, second_roll_curr, second_roll_delta):
+    n = len(first_roll_curr)
+    RRE = numpy.sqrt(1/n * numpy.sum(numpy.square(first_roll_delta - first_roll_curr - (second_roll_delta - second_roll_curr))))
+    return RRE
 
 if __name__=="__main__":
     # parse command line
@@ -144,34 +226,42 @@ if __name__=="__main__":
     parser.add_argument('--plot', help='plot the first and the aligned second trajectory to an image (format: png)')
     parser.add_argument('--verbose', help='print all evaluation data (otherwise, only the RMSE absolute translational error in meters after alignment will be printed)', action='store_true')
     parser.add_argument('--dim', help='choose plot dimension (2D or 3D)', default=2)
+    parser.add_argument('--plotrot', help='plot ground truth and estimated Euler angles to an image (format: png')
     args = parser.parse_args()
 
     first_list = associate.read_file_list(args.first_file)
     second_list = associate.read_file_list(args.second_file)
 
-    matches = associate.associate(first_list, second_list,float(args.offset),float(args.max_difference))    
+    matches = associate.associate(first_list, second_list, float(args.offset), float(args.max_difference))
+
     if len(matches)<2:
         sys.exit("Couldn't find matching timestamp pairs between groundtruth and estimated trajectory! Did you choose the correct sequence?")
-
 
     first_xyz = numpy.matrix([[float(value) for value in first_list[a][0:3]] for a,b in matches]).transpose()
     second_xyz = numpy.matrix([[float(value)*float(args.scale) for value in second_list[b][0:3]] for a,b in matches]).transpose()
     rot,trans,trans_error = align(second_xyz,first_xyz)
-    
     second_xyz_aligned = rot * second_xyz + trans
-    
+
     first_stamps = list(first_list.keys())
     first_stamps.sort()
-    first_xyz_full = numpy.matrix([[float(value) for value in first_list[b][0:3]] for b in first_stamps]).transpose()
+    first_xyz_full = numpy.matrix([[float(value) for value in first_list[a][0:3]] for a in first_stamps]).transpose()
     
     second_stamps = list(second_list.keys())
     second_stamps.sort()
     second_xyz_full = numpy.matrix([[float(value)*float(args.scale) for value in second_list[b][0:3]] for b in second_stamps]).transpose()
     second_xyz_full_aligned = rot * second_xyz_full + trans
-    
+
+    first_rot = numpy.matrix([[float(value) for value in first_list[a][3:7]] for a,b in matches]).transpose()
+    second_rot = numpy.matrix([[float(value)*float(args.scale) for value in second_list[b][3:7]] for a,b in matches]).transpose()
+    first_rot_obj = Rotation.from_quat(first_rot.transpose()) # rotation objects
+    first_rot_euler = first_rot_obj.as_euler('xyz', degrees=True)
+    second_rot_obj = Rotation.from_quat(second_rot.transpose()) # rotation objects
+    second_rot_euler = second_rot_obj.as_euler('xyz', degrees=True)
+    calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler)
+    calculateRelativeRotationErrors(first_rot_euler, second_rot_euler)
+
     if args.verbose:
         print("compared_pose_pairs %d pairs"%(len(trans_error)))
-
         print("absolute_translational_error.rmse %f m"%numpy.sqrt(numpy.dot(trans_error,trans_error) / len(trans_error)))
         print("absolute_translational_error.mean %f m"%numpy.mean(trans_error))
         print("absolute_translational_error.median %f m"%numpy.median(trans_error))
@@ -192,9 +282,6 @@ if __name__=="__main__":
         file.close()
 
     if args.plot:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
         import matplotlib.pylab as pylab
         from matplotlib.patches import Ellipse
         fig = plt.figure()
@@ -212,12 +299,15 @@ if __name__=="__main__":
         #     label=""
             
         ax.legend()
-
         ax.set_xlabel('x [m]')
         ax.set_ylabel('y [m]')
+
         if int(args.dim) == 3:
             ax.set_zlabel('z [m]')
             ax.view_init(elev=None, azim=None)
 
         plt.savefig(args.plot,dpi=90)
         
+    if args.plotrot:
+        plot_rotations(first_rot_euler, second_rot_euler)
+        plt.savefig(args.plotrot, dpi=90)
