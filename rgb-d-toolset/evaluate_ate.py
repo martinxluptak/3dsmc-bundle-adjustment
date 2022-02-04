@@ -182,8 +182,7 @@ def calculateARE(first_roll, second_roll):
     return ARE
 
 #Relative Yaw, Roll and Pitch Errors
-def calculateRelativeRotationErrors(first_rot_euler, second_rot_euler):
-    delta = 5
+def calculateRelativeRotationErrors(first_rot_euler, second_rot_euler, delta):
     RYE = calculateRYE(first_rot_euler[0:-delta,0], first_rot_euler[delta:,0],
                  second_rot_euler[0:-delta,0], second_rot_euler[delta:,0])
     RPE = calculateRPE(first_rot_euler[0:-delta,1], first_rot_euler[delta:,1],
@@ -227,6 +226,7 @@ if __name__=="__main__":
     parser.add_argument('--verbose', help='print all evaluation data (otherwise, only the RMSE absolute translational error in meters after alignment will be printed)', action='store_true')
     parser.add_argument('--dim', help='choose plot dimension (2D or 3D)', default=2)
     parser.add_argument('--plotrot', help='plot ground truth and estimated Euler angles to an image (format: png')
+    parser.add_argument('--delta', help='window duration for Relative Yaw Error, in number of keyframes', default=5)
     args = parser.parse_args()
 
     first_list = associate.read_file_list(args.first_file)
@@ -258,7 +258,7 @@ if __name__=="__main__":
     second_rot_obj = Rotation.from_quat(second_rot.transpose()) # rotation objects
     second_rot_euler = second_rot_obj.as_euler('xyz', degrees=True)
     calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler)
-    calculateRelativeRotationErrors(first_rot_euler, second_rot_euler)
+    calculateRelativeRotationErrors(first_rot_euler, second_rot_euler, int(args.delta))
 
     if args.verbose:
         print("compared_pose_pairs %d pairs"%(len(trans_error)))
