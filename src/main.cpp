@@ -103,7 +103,7 @@ int main() {
     Vector4d intrinsics_initial = read_camera_intrinsics_from_file(cfg.CAMERA_DEFAULT_INTRINSICS_PATH);
     auto intrinsics_optimized(intrinsics_initial);  // to be later optimized
     bool is_tracking_finished = false;
-    bool is_optimization_finished = true;
+    bool is_optimization_finished = false;
     // Uncomment this and comment from that onwards, for debugging
     // optimizeDebug(cfg_optimization, intrinsics_initial, intrinsics_optimized, 0);
 
