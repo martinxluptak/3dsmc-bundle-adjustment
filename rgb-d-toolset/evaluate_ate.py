@@ -271,11 +271,8 @@ if __name__=="__main__":
     second_rot_obj = Rotation.from_quat(second_rot.transpose()) # estimated rotation objects
 
     if int(args.horn) == 1: # with Hornification
-        second_rot_quat = second_rot_obj.as_quat() # shape: 80x4
         rot_obj = Rotation.from_matrix(rot) # alignment rotation object
-        rot_quat = rot_obj.as_quat()[:,None].transpose() # shape: 1x4
-        second_rot_quat_aligned = rot_quat * second_rot_quat # shape: 80x4
-        second_rot_obj_aligned = Rotation.from_quat(second_rot_quat_aligned) # aligned estimated rotation objects
+        second_rot_obj_aligned = rot_obj * second_rot_obj
         second_rot_euler_aligned = second_rot_obj_aligned.as_euler('xyz', degrees=True)
         calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler_aligned)
         calculateRelativeRotationErrors(first_rot_euler, second_rot_euler_aligned, int(args.delta))
