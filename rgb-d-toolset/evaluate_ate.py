@@ -84,7 +84,7 @@ def align(model,data):
 
 def plot_traj(ax,stamps,traj,style,color,label):
     """
-    Plot a trajectory using matplotlib. 
+    Plot a 2D or 3D trajectory using matplotlib.
     
     Input:
     ax -- the plot
@@ -111,7 +111,7 @@ def plot_traj(ax,stamps,traj,style,color,label):
                 label=""
                 x=[]
                 y=[]
-            last= stamps[i]
+            last=stamps[i]
         if len(x)>0:
             ax.plot(x,y,style,color=color,label=label)
 
@@ -128,11 +128,17 @@ def plot_traj(ax,stamps,traj,style,color,label):
                 x=[]
                 y=[]
                 z=[]
-            last= stamps[i]
+            last=stamps[i]
         if len(x)>0:
             ax.plot(x,y,z,style,color=color,label=label)
 
 def plot_rotations(first_rot_euler, second_rot_euler):
+    """
+    Plot ground truth and estimated Euler angles
+
+    :param first_rot_euler: ground truth Euler angles (shape: Nx3)
+    :param second_rot_euler: estimated Euler angles (shape: Nx3)
+    """
 
     fig = plt.figure()
     x = numpy.linspace(0, first_rot_euler.shape[0], first_rot_euler.shape[0])
@@ -158,6 +164,7 @@ def plot_rotations(first_rot_euler, second_rot_euler):
 
 #Absolute Yaw, Roll and Pitch Errors
 def calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler):
+    print(first_rot_euler.shape)
     AYE = calculateAYE(first_rot_euler[:,0], second_rot_euler[:,0])
     APE = calculateAPE(first_rot_euler[:,1], second_rot_euler[:,1])
     ARE = calculateARE(first_rot_euler[:,2], second_rot_euler[:,2])
@@ -184,17 +191,23 @@ def calculateARE(first_roll, second_roll):
 #Relative Yaw, Roll and Pitch Errors
 def calculateRelativeRotationErrors(first_rot_euler, second_rot_euler, delta):
     RYE = calculateRYE(first_rot_euler[0:-delta,0], first_rot_euler[delta:,0],
-                 second_rot_euler[0:-delta,0], second_rot_euler[delta:,0])
+                       second_rot_euler[0:-delta,0], second_rot_euler[delta:,0])
     RPE = calculateRPE(first_rot_euler[0:-delta,1], first_rot_euler[delta:,1],
-                 second_rot_euler[0:-delta,1], second_rot_euler[delta:,1])
+                       second_rot_euler[0:-delta,1], second_rot_euler[delta:,1])
     RRE = calculateRRE(first_rot_euler[0:-delta,2], first_rot_euler[delta:,2],
-                 second_rot_euler[0:-delta,2], second_rot_euler[delta:,2])
+                       second_rot_euler[0:-delta,2], second_rot_euler[delta:,2])
     print("RYE: ", RYE, "RPE: ", RPE, "RRE: ", RRE)
 
 #Relative Yaw Error
 def calculateRYE(first_yaw_curr, first_yaw_delta, second_yaw_curr, second_yaw_delta):
+    """
+    :param first_yaw_curr: yaw_i
+    :param first_yaw_delta: yaw_{i+\Delta t}
+    :param second_yaw_curr: yaw_prim_i
+    :param second_yaw_delta: yaw_prim_{i+\Delta t}
+    :return: Relative Yaw Error
+    """
     n = len(first_yaw_curr)
-    print(numpy.sum(numpy.square(first_yaw_delta - first_yaw_curr - (second_yaw_delta - second_yaw_curr))))
     RYE = numpy.sqrt(1/n * numpy.sum(numpy.square(first_yaw_delta - first_yaw_curr - (second_yaw_delta - second_yaw_curr))))
     return RYE
 
@@ -252,7 +265,7 @@ if __name__=="__main__":
     second_xyz_full_aligned = rot * second_xyz_full + trans
 
     first_rot = numpy.matrix([[float(value) for value in first_list[a][3:7]] for a,b in matches]).transpose()
-    second_rot = numpy.matrix([[float(value)*float(args.scale) for value in second_list[b][3:7]] for a,b in matches]).transpose()
+    second_rot = numpy.matrix([[float(value) for value in second_list[b][3:7]] for a,b in matches]).transpose()
     first_rot_obj = Rotation.from_quat(first_rot.transpose()) # rotation objects
     first_rot_euler = first_rot_obj.as_euler('xyz', degrees=True)
     second_rot_obj = Rotation.from_quat(second_rot.transpose()) # rotation objects
