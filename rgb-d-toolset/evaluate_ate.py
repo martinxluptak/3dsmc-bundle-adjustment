@@ -164,7 +164,6 @@ def plot_rotations(first_rot_euler, second_rot_euler):
 
 #Absolute Yaw, Roll and Pitch Errors
 def calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler):
-    print(first_rot_euler.shape)
     AYE = calculateAYE(first_rot_euler[:,0], second_rot_euler[:,0])
     APE = calculateAPE(first_rot_euler[:,1], second_rot_euler[:,1])
     ARE = calculateARE(first_rot_euler[:,2], second_rot_euler[:,2])
@@ -240,6 +239,7 @@ if __name__=="__main__":
     parser.add_argument('--dim', help='choose plot dimension (2D or 3D)', default=2)
     parser.add_argument('--plotrot', help='plot ground truth and estimated Euler angles to an image (format: png')
     parser.add_argument('--delta', help='window duration for Relative Yaw Error, in number of keyframes', default=5)
+    parser.add_argument('--horn', help='align rotations using the Horn method', default=0)
     args = parser.parse_args()
 
     first_list = associate.read_file_list(args.first_file)
@@ -266,12 +266,23 @@ if __name__=="__main__":
 
     first_rot = numpy.matrix([[float(value) for value in first_list[a][3:7]] for a,b in matches]).transpose()
     second_rot = numpy.matrix([[float(value) for value in second_list[b][3:7]] for a,b in matches]).transpose()
-    first_rot_obj = Rotation.from_quat(first_rot.transpose()) # rotation objects
+    first_rot_obj = Rotation.from_quat(first_rot.transpose()) # gt rotation objects
     first_rot_euler = first_rot_obj.as_euler('xyz', degrees=True)
-    second_rot_obj = Rotation.from_quat(second_rot.transpose()) # rotation objects
-    second_rot_euler = second_rot_obj.as_euler('xyz', degrees=True)
-    calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler)
-    calculateRelativeRotationErrors(first_rot_euler, second_rot_euler, int(args.delta))
+    second_rot_obj = Rotation.from_quat(second_rot.transpose()) # estimated rotation objects
+
+    if int(args.horn) == 1: # with Hornification (bad results)
+        second_rot_quat = second_rot_obj.as_quat() # shape: 80x4
+        rot_obj = Rotation.from_matrix(rot) # alignment rotation object
+        rot_quat = rot_obj.as_quat()[:,None].transpose() # shape: 1x4
+        second_rot_quat_aligned = rot_quat * second_rot_quat # shape: 80x4
+        second_rot_obj_aligned = Rotation.from_quat(second_rot_quat_aligned) # aligned estimated rotation objects
+        second_rot_euler_aligned = second_rot_obj_aligned.as_euler('xyz', degrees=True)
+        calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler_aligned)
+        calculateRelativeRotationErrors(first_rot_euler, second_rot_euler_aligned, int(args.delta))
+    else: # without Hornification
+        second_rot_euler = second_rot_obj.as_euler('xyz', degrees=True)
+        calculateAbsoluteRotationErrors(first_rot_euler, second_rot_euler)
+        calculateRelativeRotationErrors(first_rot_euler, second_rot_euler, int(args.delta))
 
     if args.verbose:
         print("compared_pose_pairs %d pairs"%(len(trans_error)))
