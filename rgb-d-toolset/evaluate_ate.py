@@ -144,21 +144,21 @@ def plot_rotations(first_rot_euler, second_rot_euler):
     x = numpy.linspace(0, first_rot_euler.shape[0], first_rot_euler.shape[0])
 
     ax1 = fig.add_subplot(311)
-    ax1.plot(x, first_rot_euler[:,0],'.',color="black",label="ground_truth")
-    ax1.plot(x, second_rot_euler[:,0],'.',color="blue",label="estimated")
+    ax1.plot(x, first_rot_euler[:,0],'.',color="green",label="ground_truth")
+    ax1.plot(x, second_rot_euler[:,0],'.',color="red",label="estimated")
     ax1.legend()
     ax1.set_xlabel('keyframe number')
     ax1.set_ylabel('yaw [degrees]')
 
     ax2 = fig.add_subplot(312)
-    ax2.plot(x, first_rot_euler[:,1],'.',color="black")
-    ax2.plot(x, second_rot_euler[:,1],'.',color="blue")
+    ax2.plot(x, first_rot_euler[:,1],'.',color="green")
+    ax2.plot(x, second_rot_euler[:,1],'.',color="red")
     ax2.set_xlabel('keyframe number')
     ax2.set_ylabel('pitch [degrees]')
 
     ax3 = fig.add_subplot(313)
-    ax3.plot(x, first_rot_euler[:,2],'.',color="black")
-    ax3.plot(x, second_rot_euler[:,2],'.',color="blue")
+    ax3.plot(x, first_rot_euler[:,2],'.',color="green")
+    ax3.plot(x, second_rot_euler[:,2],'.',color="red")
     ax3.set_xlabel('keyframe number')
     ax3.set_ylabel('roll [degrees]')
 
@@ -330,11 +330,11 @@ if __name__=="__main__":
             ax.set_zlabel('z [m]')
             ax.view_init(elev=None, azim=None)
 
-        plt.savefig(args.plot,dpi=90)
+        plt.savefig(args.plot,dpi=400)
         
     if args.plotrot:
         if int(args.horn) == 1:
             plot_rotations(first_rot_euler, second_rot_euler_aligned)
         else:
             plot_rotations(first_rot_euler, second_rot_euler)
-        plt.savefig(args.plotrot, dpi=90)
+        plt.savefig(args.plotrot, dpi=400)
