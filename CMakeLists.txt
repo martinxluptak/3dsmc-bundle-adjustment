@@ -30,6 +30,7 @@ set(HEADER_FILES
         "headers/CommonTypes.h"
         "headers/BundleAdjustmentConfig.h"
         "headers/OptimizationUtils.h"
+        "headers/helpers.h"
         )
 
 set(SOURCE_FILES
