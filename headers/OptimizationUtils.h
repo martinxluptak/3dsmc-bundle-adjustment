@@ -59,4 +59,9 @@ Sophus::SE3d getFirstPose(const string & first_timestamp,
 
 void poseOffset(vector<KeyFrame> &keyframes, const Sophus::SE3d & initial_pose);
 
+bool
+optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_initial, Vector4d &intrinsics_optimized,
+              int opt_type);
+
+
 #endif //BUNDLE_ADJUSTMENT_OPTIMIZATIONUTILS_H
