@@ -5,6 +5,7 @@ cmake-build-release/
 build/
 Data/
 lib/build_opencv/
+lib/build-pangolin/
 opencv/
 opencv_contrib/
 Data/rgbd_dataset_freiburg1_xyz/
