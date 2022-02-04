@@ -270,7 +270,7 @@ if __name__=="__main__":
     first_rot_euler = first_rot_obj.as_euler('xyz', degrees=True)
     second_rot_obj = Rotation.from_quat(second_rot.transpose()) # estimated rotation objects
 
-    if int(args.horn) == 1: # with Hornification (bad results)
+    if int(args.horn) == 1: # with Hornification
         second_rot_quat = second_rot_obj.as_quat() # shape: 80x4
         rot_obj = Rotation.from_matrix(rot) # alignment rotation object
         rot_quat = rot_obj.as_quat()[:,None].transpose() # shape: 1x4
@@ -333,5 +333,8 @@ if __name__=="__main__":
         plt.savefig(args.plot,dpi=90)
         
     if args.plotrot:
-        plot_rotations(first_rot_euler, second_rot_euler)
+        if int(args.horn) == 1:
+            plot_rotations(first_rot_euler, second_rot_euler_aligned)
+        else:
+            plot_rotations(first_rot_euler, second_rot_euler)
         plt.savefig(args.plotrot, dpi=90)
