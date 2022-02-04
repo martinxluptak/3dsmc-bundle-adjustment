@@ -68,6 +68,12 @@ This library needs to be built from source. Run the bash script found in `lib/` 
 After the compilation is complete, open `CMakeLists.txt` and set the `OpenCV_DIR` variable to navigate to
  the `opencv_build` directory.
 
+### Pangolin
+This library needs to be built from source. Run the bash script found in `lib/` directory (use [git-bash](https://git-scm.com/downloads) on Windows):
+```
+./install_pangolin.sh
+```
+
 ### Further setup instructions
 
 1. After installing the libraries with Conan, import the project into Visual Studio / CLion and execute
