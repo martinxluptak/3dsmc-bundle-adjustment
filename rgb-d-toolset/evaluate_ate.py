@@ -111,7 +111,7 @@ def plot_traj(ax,stamps,traj,style,color,label):
                 label=""
                 x=[]
                 y=[]
-            last=stamps[i]
+            last= stamps[i]
         if len(x)>0:
             ax.plot(x,y,style,color=color,label=label)
 
@@ -245,21 +245,21 @@ if __name__=="__main__":
     first_list = associate.read_file_list(args.first_file)
     second_list = associate.read_file_list(args.second_file)
 
-    matches = associate.associate(first_list, second_list, float(args.offset), float(args.max_difference))
-
+    matches = associate.associate(first_list, second_list,float(args.offset),float(args.max_difference))
     if len(matches)<2:
         sys.exit("Couldn't find matching timestamp pairs between groundtruth and estimated trajectory! Did you choose the correct sequence?")
 
     first_xyz = numpy.matrix([[float(value) for value in first_list[a][0:3]] for a,b in matches]).transpose()
     second_xyz = numpy.matrix([[float(value)*float(args.scale) for value in second_list[b][0:3]] for a,b in matches]).transpose()
     rot,trans,trans_error = align(second_xyz,first_xyz)
+
     second_xyz_aligned = rot * second_xyz + trans
 
-    first_stamps = list(first_list.keys())
+    first_stamps = first_list.keys()
     first_stamps.sort()
-    first_xyz_full = numpy.matrix([[float(value) for value in first_list[a][0:3]] for a in first_stamps]).transpose()
-    
-    second_stamps = list(second_list.keys())
+    first_xyz_full = numpy.matrix([[float(value) for value in first_list[b][0:3]] for b in first_stamps]).transpose()
+
+    second_stamps = second_list.keys()
     second_stamps.sort()
     second_xyz_full = numpy.matrix([[float(value)*float(args.scale) for value in second_list[b][0:3]] for b in second_stamps]).transpose()
     second_xyz_full_aligned = rot * second_xyz_full + trans
