@@ -36,7 +36,7 @@ public:
     const string DETECTOR = "SIFT"; // options: ORB, SIFT, SURF
     int NUM_FEATURES = 1000; // hyperparameter for ORB and SIFT
     int HESSIAN_THRES = 8000; // hyperparameter for SURF; default value: 100
-    const uint KEYFRAME_INCREMENT = 5;
+//    const uint KEYFRAME_INCREMENT = 10;
     const float LOWE_THRESHOLD = .7;
 
 };

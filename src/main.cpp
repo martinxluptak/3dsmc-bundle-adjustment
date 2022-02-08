@@ -19,7 +19,10 @@ using namespace cv;
 using namespace std;
 using namespace Eigen;
 
-void tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &map, BundleAdjustmentConfig &cfg,
+///
+/// \return Whether tracking was successful or has failed
+///
+bool tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &map, BundleAdjustmentConfig &cfg,
                    int &landmark_id, Vector4d &intrinsics_initial) {
     // Transformation from frame 2 to 1
     Sophus::SE3d T_1_2;
@@ -41,7 +44,7 @@ void tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &ma
 
     if (current_frame.frame_id == 0) {
         keyframes.push_back(current_frame);
-        return;
+        return true;
     }
     auto &previous_frame = keyframes.back();
     vector<vector<DMatch>> knn_matches;
@@ -58,7 +61,14 @@ void tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &ma
                            current_frame.points3d_local, lowe_matches, inliers,
                            T_1_2);
 
-    cout << "Found this many inliers: " << inliers.size() << endl;
+    if(inliers.size() >= 80)
+        return true;
+    else if(inliers.size() < 20) {
+        cout<< "Tracking failed. #inliers: " << inliers.size() <<endl;
+        return false;
+    }
+
+    cout << "Adding keyframe with #inliers: " << inliers.size() << endl;
 
     // Update pose, track on the last saved pose inside keyframes, which could possibly have been optimized
     auto last_pose = keyframes[keyframes.size() - 1].T_w_c;
@@ -68,7 +78,7 @@ void tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &ma
     updateLandmarks(previous_frame, current_frame, inliers, map, landmark_id);
 
     keyframes.push_back(current_frame);
-
+    return true;
 }
 
 void draw_poses(const vector<KeyFrame>& keyframes){
@@ -112,7 +122,7 @@ int main() {
 
     // Load the sequence
     cout << "Initialize virtual sensor..." << endl;
-    VirtualSensor sensor(cfg.KEYFRAME_INCREMENT);
+    VirtualSensor sensor(1);
     if (!sensor.Init(cfg.DATASET_FILEPATH)) {
         cout << "Failed to initialize the sensor.\nCheck file path." << endl;
         return -1;
@@ -147,9 +157,9 @@ int main() {
         draw_map(map);
         pangolin::FinishFrame();
 
-        is_tracking_finished = !sensor.ProcessNextFrame();
+        is_tracking_finished = is_tracking_finished || !sensor.ProcessNextFrame();
         if (!is_tracking_finished) {
-            tracking_step(sensor, keyframes, map, cfg, landmark_id, intrinsics_initial);    // Tracking step
+            is_tracking_finished = !tracking_step(sensor, keyframes, map, cfg, landmark_id, intrinsics_initial);    // Tracking step
             if (!is_optimization_finished && do_windowed_optimization && keyframes.size() % cfg_optimization.frame_frequency == 0 &&
                 keyframes.size() >= cfg_optimization.window_size) {
                 windowOptimize(cfg_optimization, keyframes.size() - cfg_optimization.window_size, keyframes.size() - 1,
