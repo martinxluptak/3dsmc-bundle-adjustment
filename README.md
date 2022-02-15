@@ -32,7 +32,7 @@ the [TUM-RGBD Dataset](https://vision.in.tum.de/data/datasets/rgbd-dataset). \
 `src/` -> project sources. \
 `test/` -> test sources. \
 `rgb-d-toolset/` -> Used to evaluate RPE (Relative Pose Error) and ATE (Absolute Trajectory Error) to benchmark bundle
-adjustment performance. \
+adjustment performance. These [scripts](https://vision.in.tum.de/data/datasets/rgbd-dataset/tools) were created by the Juergen Sturm, TUM in 2013..  \
 `headers/BundleAdjustmengConfig.h` -> Set all parameters of optimization through one data class. \
 `headers/Map3D.h` -> Stores world scene (optimization results).
 
