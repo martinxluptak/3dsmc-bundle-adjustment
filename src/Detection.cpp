@@ -5,9 +5,9 @@
 #include <Detection.h>
 
 void getKeypointsAndDescriptors(const string &detector,
-                              int &num_features, int &hessian_threshold,
-                              const Mat &rgb, const Mat &depth,
-                              vector<KeyPoint> &keypoints, Mat &descriptors) {
+                                int &num_features, int &hessian_threshold,
+                                const Mat &rgb, const Mat &depth,
+                                vector <KeyPoint> &keypoints, Mat &descriptors) {
     if (detector == "ORB")
         getORB(rgb, depth, keypoints, descriptors, num_features);
     else if (detector == "SIFT")
@@ -18,34 +18,34 @@ void getKeypointsAndDescriptors(const string &detector,
         cout << "Provide correct detector name" << endl;
 }
 
-void getORB(const Mat &rgb, const Mat &depth,  vector<KeyPoint> &keypoints, Mat &descriptors,
+void getORB(const Mat &rgb, const Mat &depth, vector <KeyPoint> &keypoints, Mat &descriptors,
             int &num_features) {
-    Ptr<ORB> detector = ORB::create(num_features);
+    Ptr <ORB> detector = ORB::create(num_features);
     detector->detectAndCompute(rgb, noArray(), keypoints, descriptors);
     pruneMINF(depth, keypoints, descriptors);
 //    cout << "key: " << keypoints.size() << endl;
 //    cout << "desc: " << descriptors.size() << endl;
 }
 
-void getSIFT(const Mat &rgb, const Mat &depth, vector<KeyPoint> &keypoints, Mat &descriptors,
-            int &num_features) {
-    Ptr<SIFT> detector = SIFT::create(num_features);
+void getSIFT(const Mat &rgb, const Mat &depth, vector <KeyPoint> &keypoints, Mat &descriptors,
+             int &num_features) {
+    Ptr <SIFT> detector = SIFT::create(num_features);
     detector->detectAndCompute(rgb, noArray(), keypoints, descriptors);
     pruneMINF(depth, keypoints, descriptors);
 }
 
-void getSURF(const Mat &rgb, const Mat &depth, vector<KeyPoint> &keypoints, Mat &descriptors,
+void getSURF(const Mat &rgb, const Mat &depth, vector <KeyPoint> &keypoints, Mat &descriptors,
              int &hessian_threshold) {
-    Ptr<SURF> detector = SURF::create(hessian_threshold);
+    Ptr <SURF> detector = SURF::create(hessian_threshold);
     detector->detectAndCompute(rgb, noArray(), keypoints, descriptors);
     pruneMINF(depth, keypoints, descriptors);
 }
 
-void pruneMINF(Mat depth, vector<KeyPoint> &keypoints, Mat &descriptors){
-    vector<KeyPoint> good_keypoints;
+void pruneMINF(Mat depth, vector <KeyPoint> &keypoints, Mat &descriptors) {
+    vector <KeyPoint> good_keypoints;
     Mat good_descriptors;
 
-    for (int id=0; id < keypoints.size(); id++){
+    for (int id = 0; id < keypoints.size(); id++) {
         int x = static_cast<int>(keypoints[id].pt.x);
         int y = static_cast<int>(keypoints[id].pt.y);
         if (depth.at<float>(y, x) > 1e-15) {

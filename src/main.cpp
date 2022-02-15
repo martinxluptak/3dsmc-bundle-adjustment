@@ -61,10 +61,10 @@ bool tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &ma
                            current_frame.points3d_local, lowe_matches, inliers,
                            T_1_2);
 
-    if(inliers.size() >= 80)
+    if (inliers.size() >= 80)
         return true;
-    else if(inliers.size() < 20) {
-        cout<< "Tracking failed. #inliers: " << inliers.size() <<endl;
+    else if (inliers.size() < 20) {
+        cout << "Tracking failed. #inliers: " << inliers.size() << endl;
         return false;
     }
 
@@ -81,18 +81,18 @@ bool tracking_step(VirtualSensor &sensor, vector<KeyFrame> &keyframes, Map3D &ma
     return true;
 }
 
-void draw_poses(const vector<KeyFrame>& keyframes){
-    for(auto& kf: keyframes) {
+void draw_poses(const vector<KeyFrame> &keyframes) {
+    for (auto &kf: keyframes) {
         render_camera(kf.T_w_c.matrix(), 3.0f, new u_int8_t[3]{0, 125, 0}, 0.1f);
     }
 }
 
- void draw_map(const Map3D& map) {
+void draw_map(const Map3D &map) {
     glColor3b(0, 0, 0);
     glPointSize(3.0);
     glBegin(GL_POINTS);
 
-    for(auto& point: map){
+    for (auto &point: map) {
         pangolin::glVertex(point.second.point);
     }
     glEnd();
@@ -133,22 +133,21 @@ int main() {
             cfg_optimization.window_size < 0);
 
     // Adapted from Pangolin example: https://github.com/stevenlovegrove/Pangolin/blob/master/examples/SimpleScene/main.cpp
-    pangolin::CreateWindowAndBind("Main",640,480);
+    pangolin::CreateWindowAndBind("Main", 640, 480);
     glEnable(GL_DEPTH_TEST);
 
     // Define Projection and initial ModelView matrix
     pangolin::OpenGlRenderState s_cam(
-        pangolin::ProjectionMatrix(640,480,420,420,320,240,0.2,100),
-        pangolin::ModelViewLookAt(-2,2,-2, 0,0,0, pangolin::AxisNegY)
+            pangolin::ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.2, 100),
+            pangolin::ModelViewLookAt(-2, 2, -2, 0, 0, 0, pangolin::AxisNegY)
     );
 
-    pangolin::View& d_cam = pangolin::CreateDisplay()
-            .SetBounds(0.0, 1.0, 0.0, 1.0, -640.0f/480.0f)
+    pangolin::View &d_cam = pangolin::CreateDisplay()
+            .SetBounds(0.0, 1.0, 0.0, 1.0, -640.0f / 480.0f)
             .SetHandler(new pangolin::Handler3D(s_cam));
     glClearColor(0.95f, 0.95f, 0.95f, 1.0f);  // background
 
-    while( !pangolin::ShouldQuit() )
-    {
+    while (!pangolin::ShouldQuit()) {
         // Clear screen and activate view to render into
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // Swap frames and Process Events
@@ -159,14 +158,17 @@ int main() {
 
         is_tracking_finished = is_tracking_finished || !sensor.ProcessNextFrame();
         if (!is_tracking_finished) {
-            is_tracking_finished = !tracking_step(sensor, keyframes, map, cfg, landmark_id, intrinsics_initial);    // Tracking step
-            if (!is_optimization_finished && do_windowed_optimization && keyframes.size() % cfg_optimization.frame_frequency == 0 &&
+            is_tracking_finished = !tracking_step(sensor, keyframes, map, cfg, landmark_id,
+                                                  intrinsics_initial);    // Tracking step
+            if (!is_optimization_finished && do_windowed_optimization &&
+                keyframes.size() % cfg_optimization.frame_frequency == 0 &&
                 keyframes.size() >= cfg_optimization.window_size) {
                 windowOptimize(cfg_optimization, keyframes.size() - cfg_optimization.window_size, keyframes.size() - 1,
                                keyframes, map, intrinsics_initial, intrinsics_optimized);
             }   // Optimization step
         }
-        if (is_tracking_finished && !is_optimization_finished && do_windowed_optimization && keyframes.size() % cfg_optimization.frame_frequency != 0) {
+        if (is_tracking_finished && !is_optimization_finished && do_windowed_optimization &&
+            keyframes.size() % cfg_optimization.frame_frequency != 0) {
             windowOptimize(cfg_optimization,
                            keyframes.size() - cfg_optimization.window_size,
                            keyframes.size() - 1, keyframes, map, intrinsics_initial, intrinsics_optimized);

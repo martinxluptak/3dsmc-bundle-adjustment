@@ -38,7 +38,7 @@ public:
         const Vector<T, 3> t(pose[4], pose[5], pose[6]);
         const Vector<T, 3> p_W(x_w[0], x_w[1], x_w[2]);
 
-        const Vector<T, 3> p_C = q.matrix().transpose()  * (p_W - t);
+        const Vector<T, 3> p_C = q.matrix().transpose() * (p_W - t);
         const Vector<T, 2> p_pix_est = (intrinsics * p_C / p_C.z())(seq(0, 1));
 
         // Reprojection error
@@ -62,17 +62,16 @@ private:
 
 class ReprojectionConstraintChd {
 public:
-    ReprojectionConstraintChd(double _observed_x, double _observed_y, const Eigen::Matrix3d& _intrinsics) :
+    ReprojectionConstraintChd(double _observed_x, double _observed_y, const Eigen::Matrix3d &_intrinsics) :
             observed_x{_observed_x}, observed_y{_observed_y}, intrinsics{_intrinsics} {}
 
-    template <typename T>
-    bool operator()(const T* const camera, const T* const point, T* residuals) const
-    {
+    template<typename T>
+    bool operator()(const T *const camera, const T *const point, T *residuals) const {
         Sophus::SE3d se3;
-        for(int i = 0; i < 7; ++i)
+        for (int i = 0; i < 7; ++i)
             se3.data()[i] = camera[i];
 
-        Eigen::Vector4d vec {point[0], point[1], point[2], 1.0};
+        Eigen::Vector4d vec{point[0], point[1], point[2], 1.0};
         Eigen::Vector4d p = se3.inverse().matrix() * vec;
 
         T predicted_x = p[0] / p[2] * intrinsics(0, 0) + intrinsics(0, 2);
@@ -95,10 +94,10 @@ struct SnavelyReprojectionError {
     SnavelyReprojectionError(double observed_x, double observed_y, double fx, double fy, double cx, double cy)
             : observed_x(observed_x), observed_y(observed_y), fx(fx), fy(fy), cx(cx), cy(cy) {}
 
-    template <typename T>
-    bool operator()(const T* const camera,
-                    const T* const point,
-                    T* residuals) const {
+    template<typename T>
+    bool operator()(const T *const camera,
+                    const T *const point,
+                    T *residuals) const {
 
         // Camera is W->C
 
@@ -131,7 +130,7 @@ struct SnavelyReprojectionError {
 
     // Factory to hide the construction of the CostFunction object from
     // the client code.
-    static ceres::CostFunction* Create(const double observed_x,
+    static ceres::CostFunction *Create(const double observed_x,
                                        const double observed_y,
                                        const double fx, const double fy, const double cx, const double cy) {
         return (new ceres::AutoDiffCostFunction<SnavelyReprojectionError, 2, 6, 3>(
@@ -239,11 +238,11 @@ Vector4d read_camera_intrinsics_from_file(const string &file_path) {
     return intrinsics;
 }
 
-void write_keyframe_poses_to_file(const string &file_path, const vector<KeyFrame> & keyframes) {
+void write_keyframe_poses_to_file(const string &file_path, const vector<KeyFrame> &keyframes) {
     ofstream outfile(file_path);
     for (auto &keyframe: keyframes) {
-        auto & t = keyframe.T_w_c.translation();
-        auto & q = keyframe.T_w_c.unit_quaternion();
+        auto &t = keyframe.T_w_c.translation();
+        auto &q = keyframe.T_w_c.unit_quaternion();
         outfile << keyframe.timestamp << " ";
         outfile << t.x() << " " << t.y() << " " << t.z() << " ";
         outfile << q.x() << " " << q.y() << " " << q.z() << " " << q.w();
@@ -359,7 +358,7 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
 
             // Reprojection
             problem.AddResidualBlock(
-                    ReprojectionConstraint::create_cost_function(pix_coords, 1.0/admissible_obs),
+                    ReprojectionConstraint::create_cost_function(pix_coords, 1.0 / admissible_obs),
                     loss_function_repr,
                     pose.data(), // (global) camera pose during observation
                     map_point.point.data(), // 3D point
@@ -369,7 +368,7 @@ bool windowOptimize(ceresGlobalProblem &globalProblem, int kf_i, int kf_f, vecto
             // Unprojection
             problem.AddResidualBlock(
                     DepthPrior::create_cost_function(pix_coords,
-                                                     depth, globalProblem.WEIGHT_UNPR/admissible_obs),
+                                                     depth, globalProblem.WEIGHT_UNPR / admissible_obs),
                     loss_function_unpr,
                     pose.data(),
                     map_point.point.data(),
@@ -413,14 +412,14 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
 
     // The intrinsics
     Matrix3d intrinsics = Matrix3d::Identity();
-    intrinsics(0,0) = intrinsics_initial(0);
-    intrinsics(1,1) = intrinsics_initial(1);
-    intrinsics(0,2) = intrinsics_initial(2);
-    intrinsics(1,2) = intrinsics_initial(3);
+    intrinsics(0, 0) = intrinsics_initial(0);
+    intrinsics(1, 1) = intrinsics_initial(1);
+    intrinsics(0, 2) = intrinsics_initial(2);
+    intrinsics(1, 2) = intrinsics_initial(3);
 
     // The poses
-    Quaternion q1(1.0,0.0,0.0,0.0);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
-    Vector3d t(0.0,0.0,0.0);
+    Quaternion q1(1.0, 0.0, 0.0, 0.0);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
+    Vector3d t(0.0, 0.0, 0.0);
     Sophus::SE3d::Point tr(t.x(), t.y(), t.z());
     Quaternion q2(0.8775826, 0.4794255, 0.0, 0.0);  // around 30 °
     Quaternion q3(0.5403023, 0.841471, 0.0, 0.0);  // around 60 ° (all relative to first frame)
@@ -430,15 +429,15 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
     vector<Sophus::SE3d> poses = {T1, T2, T3}, gtPoses = {T1, T2, T3};
 
     // The map, in frame 1
-    vector<double> mapVector= {
+    vector<double> mapVector = {
             .0, .0, 1.0,
-            .2,.3, 2.0,
-            -1.0,-3, .5,
+            .2, .3, 2.0,
+            -1.0, -3, .5,
             .3, -.5, .3,
             1.0, -.9, 4.0,
             -1.0, -1.0, .3,
             2.0, -2.2, 1.5,
-            .2, .5,.5,
+            .2, .5, .5,
             -.9, -.01, 1.2,
             .7, .02, .2,
             1.2, 2.4, 2.0,
@@ -449,8 +448,8 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
             -0.1, 2.0, 2.4,
     };
     vector<Vector3d> map;
-    for(int i=0; i< mapVector.size()/3; i++){
-        map.emplace_back(mapVector[3*i], mapVector[3*i+1], mapVector[3*i+2]);
+    for (int i = 0; i < mapVector.size() / 3; i++) {
+        map.emplace_back(mapVector[3 * i], mapVector[3 * i + 1], mapVector[3 * i + 2]);
     }
     vector<Vector3d> gtMap = map;
 
@@ -458,15 +457,15 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
     vector<vector<Vector2d>> O; // it will be O1, O2, O3
     vector<vector<double>> D; // it will be O1, O2, O3
 
-    for (auto pose : poses){
+    for (auto pose: poses) {
         // Map into camera coordinates
         vector<Vector2d> O_temp;
         vector<double> D_temp;
 
-        for (auto p_W : map){
+        for (auto p_W: map) {
             auto p_C = pose.inverse() * p_W;    // (C->W)^t * W
             D_temp.push_back(p_C(2));
-            O_temp.emplace_back((intrinsics * p_C / p_C(2))(seq(0,1)) + Vector2d::Random());
+            O_temp.emplace_back((intrinsics * p_C / p_C(2))(seq(0, 1)) + Vector2d::Random());
         }
 
         O.push_back(O_temp);
@@ -475,7 +474,7 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
     }
 
     // More perturbations
-    for (auto & ps : poses){
+    for (auto &ps: poses) {
         Vector3d translationPert = Vector3d::Random(3) * .3;
         Vector4d quatPert = Vector4d::Random(4) * .1; // perturbation
         Vector4d quat_eigen( // perturbed quaternion, correct like this!
@@ -500,9 +499,9 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
     auto initial_poses = poses;
 
     vector<Vector<double, 6>> generalized_poses;
-    if (opt_type==2){   // when using ceres suggested implementation
+    if (opt_type == 2) {   // when using ceres suggested implementation
 
-        for(auto ps : poses){
+        for (auto ps: poses) {
             auto quat = ps.inverse().unit_quaternion(); // Snavely reprojection wants the inverse
             auto trans = ps.inverse().translation();
             Vector3d angle_axis;
@@ -511,13 +510,13 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
 
             Vector<double, 6> generalized_pose;
             generalized_pose <<
-                angle_axis.x(),
-                angle_axis.y(),
-                angle_axis.z(),
-                trans.x(),
-                trans.y(),
-                trans.z(),
-            generalized_poses.push_back(generalized_pose);
+                             angle_axis.x(),
+                    angle_axis.y(),
+                    angle_axis.z(),
+                    trans.x(),
+                    trans.y(),
+                    trans.z(),
+                    generalized_poses.push_back(generalized_pose);
         }
     }
 
@@ -536,7 +535,7 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
 
     // Add all parameter blocks to the problem, create the residuals
     // Intrinsics
-    if (opt_type==0){   // only if we're using our method
+    if (opt_type == 0) {   // only if we're using our method
         problem.AddParameterBlock(intrinsics_optimized.data(), 4);
         problem.AddResidualBlock(
                 IntrinsicsPrior::create_cost_function(intrinsics_initial, globalProblem.WEIGHT_INTRINSICS),
@@ -546,21 +545,20 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
     }
 
     // Add map
-    for(auto & pt : map){
+    for (auto &pt: map) {
         problem.AddParameterBlock(pt.data(), 3);
     }
 
-    for(int i = 0; i < O.size(); i++){
+    for (int i = 0; i < O.size(); i++) {
 
-        if(opt_type!=2){
+        if (opt_type != 2) {
             auto &pose = poses[i];
             problem.AddParameterBlock(pose.data(),
                                       Sophus::SE3d::num_parameters,
                                       local_parametrization_se3
             );
-        }
-        else{
-            auto & gp = generalized_poses[i];
+        } else {
+            auto &gp = generalized_poses[i];
             problem.AddParameterBlock(gp.data(), 6);
         }
 
@@ -569,11 +567,11 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
         for (int j = 0; j < O[i].size(); j++) {
 
             Vector2d pix_coords = O[i][j];
-            auto & map_point = map[j];
+            auto &map_point = map[j];
 
-            if (opt_type==0)   // our method
+            if (opt_type == 0)   // our method
             {
-                auto & pose = poses[i];
+                auto &pose = poses[i];
                 // Reprojection
                 problem.AddResidualBlock(
                         ReprojectionConstraint::create_cost_function(pix_coords, 1.0),
@@ -591,20 +589,20 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
                         pose.data(),
                         map_point.data(),
                         intrinsics_optimized.data());
-            }
-            else if(opt_type==1){
-                auto & pose = poses[i];
-                auto* constraint = new ReprojectionConstraintChd(pix_coords.x(), pix_coords.y(), intrinsics);
-                auto cost_func_numeric = new ceres::NumericDiffCostFunction<ReprojectionConstraintChd, ceres::CENTRAL, 2, 7, 3>(constraint);
+            } else if (opt_type == 1) {
+                auto &pose = poses[i];
+                auto *constraint = new ReprojectionConstraintChd(pix_coords.x(), pix_coords.y(), intrinsics);
+                auto cost_func_numeric = new ceres::NumericDiffCostFunction<ReprojectionConstraintChd, ceres::CENTRAL, 2, 7, 3>(
+                        constraint);
                 problem.AddResidualBlock(cost_func_numeric,
                                          nullptr /* squared loss */,
                                          pose.data(),
                                          map_point.data());
-            }
-            else if(opt_type==2){
-                auto & gp = generalized_poses[i];
-                ceres::CostFunction* cost_function = SnavelyReprojectionError::Create(
-                        pix_coords.x(), pix_coords.y(), intrinsics_initial.x(), intrinsics_initial.y(), intrinsics_initial.z(), intrinsics_initial.w());
+            } else if (opt_type == 2) {
+                auto &gp = generalized_poses[i];
+                ceres::CostFunction *cost_function = SnavelyReprojectionError::Create(
+                        pix_coords.x(), pix_coords.y(), intrinsics_initial.x(), intrinsics_initial.y(),
+                        intrinsics_initial.z(), intrinsics_initial.w());
                 problem.AddResidualBlock(cost_function,
                                          nullptr /* squared loss */,
                                          gp.data(),
@@ -613,22 +611,23 @@ optimizeDebug(ceresGlobalProblem &globalProblem, const Vector4d &intrinsics_init
         }
     }
 
-    if (opt_type!=2){
+    if (opt_type != 2) {
         problem.SetParameterBlockConstant(poses[0].data()); // any pose, kept constant, will do
-    }
-    else    problem.SetParameterBlockConstant(generalized_poses[0].data());
+    } else problem.SetParameterBlockConstant(generalized_poses[0].data());
 
-    if(opt_type==0){problem.SetParameterBlockConstant(intrinsics_optimized.data());} // any pose, kept constant, will do
+    if (opt_type == 0) {
+        problem.SetParameterBlockConstant(intrinsics_optimized.data());
+    } // any pose, kept constant, will do
     ceres::Solve(globalProblem.options, &problem, &summary);
 
-    if(opt_type==2){
+    if (opt_type == 2) {
         poses.clear();
 
         // This will convert at least the poses into their original format
-        for(auto gp : generalized_poses){
-            auto aa = gp(seq(0,2));
-            auto trans = gp(seq(3,5));
-            auto intr = gp(seq(6,9));
+        for (auto gp: generalized_poses) {
+            auto aa = gp(seq(0, 2));
+            auto trans = gp(seq(3, 5));
+            auto intr = gp(seq(6, 9));
             Vector4d quat;
             ceres::AngleAxisToQuaternion(aa.data(), quat.data());
             Quaternion quat_quat(quat.x(), quat.y(), quat.z(), quat.w());
@@ -706,14 +705,14 @@ Sophus::SE3d getFirstPose(const string &first_timestamp, const string &ground_tr
     // Create the first pose
     Sophus::SE3d firstPose;
     Quaternion q(
-            qws[ firstPoseIndex ],
-            qxs[ firstPoseIndex ],
-            qys[ firstPoseIndex ],
-            qzs[ firstPoseIndex ]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
+            qws[firstPoseIndex],
+            qxs[firstPoseIndex],
+            qys[firstPoseIndex],
+            qzs[firstPoseIndex]);  // pose0123 = quaternionxyzw, and quaterniond requires wxyz input
     Vector3d t(
-            txs[ firstPoseIndex ],
-            tys[ firstPoseIndex ],
-            tzs[ firstPoseIndex ]);
+            txs[firstPoseIndex],
+            tys[firstPoseIndex],
+            tzs[firstPoseIndex]);
     Sophus::SE3d::Point tr(t.x(), t.y(), t.z());
     Sophus::SE3d initialPose(q, tr);
 //    cout.precision(17);
@@ -725,10 +724,11 @@ Sophus::SE3d getFirstPose(const string &first_timestamp, const string &ground_tr
 }
 
 void poseOffset(vector<KeyFrame> &keyframes, const Sophus::SE3d &initial_pose) {
-    auto delta_pose = initial_pose * keyframes[0].T_w_c.inverse();  // C0 -> W * (C0 -> W_fictitious)^{-1} = W_fictitious -> W
+    auto delta_pose =
+            initial_pose * keyframes[0].T_w_c.inverse();  // C0 -> W * (C0 -> W_fictitious)^{-1} = W_fictitious -> W
 
     // Given a sequence of keyframes with identity being the first pose, make initial_pose the first pose
-    for (auto & kf : keyframes){
-        kf.T_w_c =  delta_pose *  kf.T_w_c;
+    for (auto &kf: keyframes) {
+        kf.T_w_c = delta_pose * kf.T_w_c;
     }
 }
