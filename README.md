@@ -10,7 +10,7 @@ Pipeline:
 * Feature matching (`src/Matching.cpp`)
 * Windowed optimization with Ceres (`src/OptimizationUtils.cpp`)
 
-Final report can be found [here](phttps://latex.tum.de/project/620176b14785adea5a15e8f9).
+Final report can be found [here](https://latex.tum.de/project/620176b14785adea5a15e8f9).
 
 ## Authors
 
