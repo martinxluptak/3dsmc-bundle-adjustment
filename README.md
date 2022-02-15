@@ -1,4 +1,40 @@
-# 3D Scanning & Motion capture Bundle adjustment project
+# Windowed Bundle Adjustment
+
+## Project description
+
+This C++ implementation of bundle adjustment with a windowed approach uses OpenCV and Ceres.
+
+Pipeline:
+
+* Feature detection (`src/Detection.cpp`)
+* Feature matching (`src/Matching.cpp`)
+* Windowed optimization with Ceres (`src/OptimizationUtils.cpp`)
+
+Final report can be found [here](phttps://latex.tum.de/project/620176b14785adea5a15e8f9).
+
+## Authors
+
+* Moustafa Elsharkawy
+* Martin Luptak
+* Leonardo Mutti
+* Witold Pacholarz
+
+Group number 24, created as a semestral project
+for [3D Scanning and Motion Capture (IN2354)](https://campus.tum.de/tumonline/WBMODHB.wbShowMHBReadOnly?pKnotenNr=1412259)
+
+## Project structure
+
+`lib/` -> Place for Conan managed libraries. \
+`Data/` -> Download and save RGB-D data in this directory. We worked with
+the [TUM-RGBD Dataset](https://vision.in.tum.de/data/datasets/rgbd-dataset). \
+`manual_match_finder/` -> Manually pick out correspondences using MATLAB. \
+`headers/` -> project headers. \
+`src/` -> project sources. \
+`test/` -> test sources. \
+`rgb-d-toolset/` -> Used to evaluate RPE (Relative Pose Error) and ATE (Absolute Trajectory Error) to benchmark bundle
+adjustment performance. \
+`headers/BundleAdjustmengConfig.h` -> Set all parameters of optimization through one data class. \
+`headers/Map3D.h` -> Stores world scene (optimization results).
 
 ## Setup instructions
 
