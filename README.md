@@ -68,7 +68,7 @@ $ conan install ..
 
 ### Windows Conan instructions
 
-1. start Developer Powershell for VS as administrator
+1. Start Developer Powershell for VS as administrator
 2. Execute the following:
 
 ```shell
@@ -120,7 +120,7 @@ run with the Debug build profile results in an error.
 environment variable and append it. ([instructions](https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/))
 4. You should be able to build and run the `bundle_adjustment_tests` target, which imports
 Eigen and Ceres.
-5. With the OpenCV dependency oyu should be able to build and run the `bundle_adjustment_surf_flann_test` target to verify
+5. With the OpenCV dependency you should be able to build and run the `bundle_adjustment_surf_flann_test` target to verify
 you have the non-free algorithms available.
 
 If you encounter issues with build architecture mismatch `x86 != x64`, make sure you are building an
